@@ -10,6 +10,7 @@ from PyQt6.QtWidgets import (
     QLabel, QLineEdit, QPushButton, QMessageBox, QStackedWidget
 )
 from PyQt6.QtCore import QTimer, Qt
+from PyQt6.QtGui import QKeySequence, QShortcut
 
 from ..utils.constants import (
     APP_TITLE,
@@ -29,6 +30,7 @@ from ..utils.constants import (
 from ..utils.logger import setup_logger
 from .video_widget import VideoWidget
 from .login_screen import LoginScreen
+from .inspection_form_dialog import InspectionFormDialog
 
 logger = setup_logger("MainWindow")
 
@@ -66,6 +68,10 @@ class MainWindow(QMainWindow):
         # Mostrar pantalla de login inicialmente
         self.stacked_widget.setCurrentWidget(self.login_screen)
         
+        # Agregar atajo de teclado para desconectar (Escape)
+        self.disconnect_shortcut = QShortcut(QKeySequence("Escape"), self)
+        self.disconnect_shortcut.activated.connect(self.disconnect_stream)
+        
         logger.debug("UI con pantallas múltiples configurada exitosamente")
     
     def _create_stream_widget(self):
@@ -77,17 +83,16 @@ class MainWindow(QMainWindow):
         layout.setContentsMargins(10, 10, 10, 10)
         layout.setSpacing(10)
         
-        # === BARRA SUPERIOR CON CONTROLES ===
-        top_bar = self._create_top_bar()
-        
         # === PANEL DE ESTADÍSTICAS ===
         self.stats_label = self._create_stats_label()
         
         # === ÁREA DE VIDEO (EXPANDIDA) ===
         self.video_widget = VideoWidget()
         
-        # Agregar componentes
-        layout.addWidget(top_bar)
+        # Conectar señal del botón "+" del video widget
+        self.video_widget.plus_button_clicked.connect(self.on_plus_button_clicked)
+        
+        # Agregar componentes (sin barra superior)
         layout.addWidget(self.stats_label)
         layout.addWidget(self.video_widget)
         
@@ -165,10 +170,9 @@ class MainWindow(QMainWindow):
         
         if self.video_widget.start_stream(rtsp_url):
             # Conexión exitosa - cambiar a pantalla de stream
-            self.connection_info.setText(f"🔗 Conectado a {ip}")
             self.stacked_widget.setCurrentWidget(self.stream_widget)
             self.start_stats_monitoring()
-            logger.info("Transición a pantalla de stream exitosa")
+            logger.info(f"Transición a pantalla de stream exitosa - Conectado a {ip}")
         else:
             # Error de conexión - mostrar mensaje
             QMessageBox.critical(self.login_screen, "Error de Conexión", 
@@ -200,7 +204,54 @@ class MainWindow(QMainWindow):
         self.stacked_widget.setCurrentWidget(self.login_screen)
         logger.info("Stream desconectado - volviendo a pantalla de login")
     
+    def on_plus_button_clicked(self):
+        """Manejar clic en botón flotante '+' - Mostrar formulario de inspección"""
+        logger.info("Botón '+' presionado - Abriendo formulario de inspección")
+        
+        # Crear y mostrar el dialog de formulario de inspección
+        dialog = InspectionFormDialog(self)
+        
+        # Conectar señal para recibir los datos guardados
+        dialog.data_saved.connect(self.on_inspection_data_saved)
+        
+        # Mostrar dialog modal
+        dialog.exec()
+    
+    def on_inspection_data_saved(self, data):
+        """Manejar datos guardados del formulario de inspección"""
+        logger.info("Datos de inspección recibidos desde el formulario")
+        logger.debug(f"Datos completos: {data}")
+        
+        # Actualizar overlays en el video con los datos de pozos
+        pozo_desde = data.get('pozo_desde', '')
+        pozo_hasta = data.get('pozo_hasta', '')
+        
+        if self.video_widget:
+            self.video_widget.update_pozo_overlays(pozo_desde, pozo_hasta)
+        
+        # Mostrar resumen simplificado
+        summary = f"""
+📋 DATOS DE INSPECCIÓN GUARDADOS:
 
+📅 Fecha/Hora: {data['fecha_hora']}
+👤 Operario: {data['operario']}
+🏙️ Ciudad: {data['ciudad']}
+📍 Dirección: {data['direccion']}
+🏘️ Localidad: {data['localidad']}
+🔄 Sentido: {data['sentido']}
+🚰 Tipo Alcant.: {data['tipo_alcant']}
+🔧 Material: {data['material']}
+📏 Diámetro: {data['diametro']}
+⬇️ Pozo Desde: {data['pozo_desde']}
+⬆️ Pozo Hasta: {data['pozo_hasta']}
+🔗 Ref. Tramo: {data['ref_tramo']}
+📝 Info Adicional: {data['inf_adicional'][:50]}{'...' if len(data['inf_adicional']) > 50 else ''}
+
+🎬 Los overlays de pozos ahora se muestran en el video.
+        """.strip()
+        
+        # Mostrar resumen
+        QMessageBox.information(self, "✅ Datos Guardados", summary)
     
     def start_stats_monitoring(self):
         """Iniciar monitoreo de estadísticas en tiempo real"""

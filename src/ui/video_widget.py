@@ -10,8 +10,9 @@ gi.require_version('Gst', '1.0')
 gi.require_version('GstVideo', '1.0')
 from gi.repository import Gst, GLib, GstVideo
 
-from PyQt6.QtWidgets import QFrame, QSizePolicy
-from PyQt6.QtCore import Qt
+from PyQt6.QtWidgets import QFrame, QSizePolicy, QPushButton, QLabel
+from PyQt6.QtCore import Qt, pyqtSignal
+from PyQt6.QtGui import QFont
 
 from ..utils.constants import (
     GSTREAMER_PIPELINE_TEMPLATE,
@@ -28,12 +29,17 @@ logger = setup_logger("VideoWidget")
 class VideoWidget(QFrame):
     """Widget optimizado para mostrar video de GStreamer con métricas integradas"""
     
+    # Señal emitida cuando se hace clic en el botón "+"
+    plus_button_clicked = pyqtSignal()
+    
     def __init__(self):
         super().__init__()
         self.pipeline = None
         self.bus = None
         self.metrics = StreamMetrics()
         self.setup_widget()
+        self.create_floating_button()
+        self.create_overlay_labels()
         logger.info("VideoWidget inicializado")
         
     def setup_widget(self):
@@ -50,8 +56,159 @@ class VideoWidget(QFrame):
         
         logger.debug("Widget configurado para overlay nativo")
     
+    def create_floating_button(self):
+        """Crear botón flotante circular con símbolo '+' en esquina superior derecha"""
+        self.plus_button = QPushButton("+", self)
+        
+        # Configurar tamaño y posición inicial
+        button_size = 50
+        self.plus_button.setFixedSize(button_size, button_size)
+        
+        # Estilo circular moderno
+        self.plus_button.setStyleSheet("""
+            QPushButton {
+                background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                    stop:0 rgba(255, 183, 77, 200), 
+                    stop:1 rgba(255, 167, 38, 200));
+                color: white;
+                border: 3px solid rgba(255, 255, 255, 100);
+                border-radius: 25px;
+                font-size: 24px;
+                font-weight: bold;
+                font-family: Arial, sans-serif;
+            }
+            QPushButton:hover {
+                background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                    stop:0 rgba(255, 167, 38, 230), 
+                    stop:1 rgba(255, 152, 0, 230));
+                border: 3px solid rgba(255, 255, 255, 150);
+                transform: scale(1.05);
+            }
+            QPushButton:pressed {
+                background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                    stop:0 rgba(255, 152, 0, 200), 
+                    stop:1 rgba(245, 124, 0, 200));
+                border: 3px solid rgba(255, 255, 255, 200);
+            }
+        """)
+        
+        # Conectar señal
+        self.plus_button.clicked.connect(self.plus_button_clicked.emit)
+        
+        # Posicionar en esquina superior derecha
+        self.position_floating_button()
+        
+        # Asegurar que esté encima del video
+        self.plus_button.raise_()
+        
+        logger.debug("Botón flotante '+' creado en esquina superior derecha")
+    
+    def position_floating_button(self):
+        """Posicionar botón flotante en esquina superior derecha"""
+        if hasattr(self, 'plus_button'):
+            margin = 15  # Margen desde el borde
+            button_size = self.plus_button.width()
+            
+            # Calcular posición
+            x = self.width() - button_size - margin
+            y = margin
+            
+            self.plus_button.move(x, y)
+    
+    def resizeEvent(self, event):
+        """Reposicionar botón flotante cuando el widget se redimensiona"""
+        super().resizeEvent(event)
+        if hasattr(self, 'plus_button'):
+            self.position_floating_button()
+        if hasattr(self, 'pozo_desde_label') and hasattr(self, 'pozo_hasta_label'):
+            self.position_overlay_labels()
+    
+    def create_overlay_labels(self):
+        """Crear labels de overlay para mostrar POZO DESDE y POZO HASTA"""
+        # Label para POZO DESDE (izquierda)
+        self.pozo_desde_label = QLabel("", self)
+        self.pozo_desde_label.setObjectName("pozoDesdeLabel")
+        self.pozo_desde_label.setVisible(False)  # Oculto inicialmente
+        
+        # Label para POZO HASTA (derecha)
+        self.pozo_hasta_label = QLabel("", self)
+        self.pozo_hasta_label.setObjectName("pozoHastaLabel")
+        self.pozo_hasta_label.setVisible(False)  # Oculto inicialmente
+        
+        # Estilo para ambos labels - más visible
+        overlay_style = """
+            QLabel {
+                background: rgba(255, 167, 38, 200);
+                color: white;
+                border: 3px solid white;
+                border-radius: 10px;
+                padding: 10px 15px;
+                font-size: 16px;
+                font-weight: bold;
+                font-family: Arial, sans-serif;
+            }
+        """
+        
+        self.pozo_desde_label.setStyleSheet(overlay_style)
+        self.pozo_hasta_label.setStyleSheet(overlay_style)
+        
+        # Posicionar labels
+        self.position_overlay_labels()
+        
+        # Asegurar que estén encima del video
+        self.pozo_desde_label.raise_()
+        self.pozo_hasta_label.raise_()
+        
+        logger.debug("Labels de overlay creados")
+    
+    def position_overlay_labels(self):
+        """Posicionar labels de overlay en el video"""
+        if hasattr(self, 'pozo_desde_label') and hasattr(self, 'pozo_hasta_label'):
+            margin = 20
+            
+            # POZO DESDE - Esquina inferior izquierda
+            self.pozo_desde_label.adjustSize()
+            x_desde = margin
+            y_desde = self.height() - self.pozo_desde_label.height() - margin
+            self.pozo_desde_label.move(x_desde, y_desde)
+            
+            # POZO HASTA - Esquina inferior derecha
+            self.pozo_hasta_label.adjustSize()
+            x_hasta = self.width() - self.pozo_hasta_label.width() - margin
+            y_hasta = self.height() - self.pozo_hasta_label.height() - margin
+            self.pozo_hasta_label.move(x_hasta, y_hasta)
+    
+    def update_pozo_overlays(self, pozo_desde, pozo_hasta):
+        """Actualizar texto de los overlays de pozos"""
+        if hasattr(self, 'pozo_desde_label') and hasattr(self, 'pozo_hasta_label'):
+            # Actualizar POZO DESDE
+            if pozo_desde:
+                self.pozo_desde_label.setText(f"DESDE: {pozo_desde}")
+                self.pozo_desde_label.setVisible(True)
+            else:
+                self.pozo_desde_label.setVisible(False)
+            
+            # Actualizar POZO HASTA
+            if pozo_hasta:
+                self.pozo_hasta_label.setText(f"HASTA: {pozo_hasta}")
+                self.pozo_hasta_label.setVisible(True)
+            else:
+                self.pozo_hasta_label.setVisible(False)
+            
+            # Reposicionar después de cambiar texto
+            self.position_overlay_labels()
+            
+            logger.info(f"Overlays actualizados: DESDE={pozo_desde}, HASTA={pozo_hasta}")
+    
     def start_stream(self, rtsp_url):
         """Iniciar stream con pipeline optimizado"""
+        
+        # Asegurar que los overlays estén siempre encima cuando inicia el stream
+        if hasattr(self, 'pozo_desde_label') and hasattr(self, 'pozo_hasta_label'):
+            self.pozo_desde_label.raise_()
+            self.pozo_hasta_label.raise_()
+        if hasattr(self, 'plus_button'):
+            self.plus_button.raise_()
         
         # Pipeline con nombres específicos para fácil localización
         pipeline_str = GSTREAMER_PIPELINE_TEMPLATE.format(url=rtsp_url)
