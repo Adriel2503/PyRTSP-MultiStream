@@ -189,10 +189,93 @@ class MainWindow(QMainWindow):
         """)
         desc_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         
+        # === BOTONES DE CONTROL (PAUSAR Y DETENER) ===
+        control_buttons_layout = QHBoxLayout()
+        control_buttons_layout.setSpacing(10)
+        
+        # Botón PAUSAR
+        self.pause_button = QPushButton("⏸️")
+        self.pause_button.setObjectName("pauseButton")
+        self.pause_button.setMinimumSize(45, 45)
+        self.pause_button.setMaximumSize(45, 45)
+        self.pause_button.clicked.connect(self.on_pause_clicked)
+        
+        # Botón DETENER
+        self.stop_button = QPushButton("⏹️")
+        self.stop_button.setObjectName("stopButton")
+        self.stop_button.setMinimumSize(45, 45)
+        self.stop_button.setMaximumSize(45, 45)
+        self.stop_button.clicked.connect(self.on_stop_clicked)
+        
+        # Estilos para los botones de control
+        control_button_style = """
+        QPushButton {
+            background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                stop:0 rgba(70, 70, 70, 220), 
+                stop:1 rgba(50, 50, 50, 220));
+            color: white;
+            border: 2px solid rgba(255, 255, 255, 80);
+            border-radius: 22px;
+            font-size: 16px;
+            font-weight: bold;
+        }
+        QPushButton:hover {
+            background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                stop:0 rgba(90, 90, 90, 250), 
+                stop:1 rgba(70, 70, 70, 250));
+            border: 2px solid rgba(255, 255, 255, 120);
+        }
+        QPushButton:pressed {
+            background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                stop:0 rgba(40, 40, 40, 200), 
+                stop:1 rgba(20, 20, 20, 200));
+            border: 2px solid rgba(255, 255, 255, 160);
+        }
+        """
+        
+        self.pause_button.setStyleSheet(control_button_style)
+        self.stop_button.setStyleSheet(control_button_style)
+        
+        # Agregar botones al layout horizontal
+        control_buttons_layout.addWidget(self.pause_button)
+        control_buttons_layout.addWidget(self.stop_button)
+        
+        # === ETIQUETAS DE LOS BOTONES DE CONTROL ===
+        control_labels_layout = QHBoxLayout()
+        control_labels_layout.setSpacing(10)
+        
+        pause_label = QLabel("PAUSAR")
+        pause_label.setStyleSheet("""
+        QLabel {
+            color: rgba(255, 255, 255, 160);
+            font-size: 10px;
+            font-family: Arial, sans-serif;
+            text-align: center;
+        }
+        """)
+        pause_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        
+        stop_label = QLabel("DETENER")
+        stop_label.setStyleSheet("""
+        QLabel {
+            color: rgba(255, 255, 255, 160);
+            font-size: 10px;
+            font-family: Arial, sans-serif;
+            text-align: center;
+        }
+        """)
+        stop_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        
+        control_labels_layout.addWidget(pause_label)
+        control_labels_layout.addWidget(stop_label)
+        
         # Agregar elementos al layout
         layout.addWidget(title_label)
         layout.addWidget(self.plus_button, alignment=Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(desc_label)
+        layout.addSpacing(20)  # Espacio entre secciones
+        layout.addLayout(control_buttons_layout)
+        layout.addLayout(control_labels_layout)
         layout.addStretch()  # Empujar todo hacia arriba
         
         # Estilo del panel
@@ -352,6 +435,27 @@ class MainWindow(QMainWindow):
         
         # Mostrar resumen
         QMessageBox.information(self, "✅ Datos Guardados", summary)
+    
+    def on_pause_clicked(self):
+        """Manejar clic del botón PAUSAR"""
+        logger.debug("Botón PAUSAR clickeado")
+        if self.video_widget and hasattr(self.video_widget, 'pause_stream'):
+            self.video_widget.pause_stream()
+            logger.info("Stream pausado")
+        else:
+            logger.warning("No se puede pausar - video widget no disponible o función no implementada")
+            QMessageBox.information(self, "Pausar Stream", "Función de pausa en desarrollo")
+    
+    def on_stop_clicked(self):
+        """Manejar clic del botón DETENER"""
+        logger.debug("Botón DETENER clickeado")
+        if self.video_widget and hasattr(self.video_widget, 'stop_stream'):
+            self.video_widget.stop_stream()
+            logger.info("Stream detenido")
+            # Volver a pantalla de login después de detener
+            self.disconnect_stream()
+        else:
+            logger.warning("No se puede detener - video widget no disponible")
     
     def start_stats_monitoring(self):
         """Iniciar monitoreo de estadísticas en tiempo real"""
