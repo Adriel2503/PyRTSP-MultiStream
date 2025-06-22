@@ -209,12 +209,137 @@ class InspectionFormDialog(QDialog):
         
         for field, name in required_fields:
             if not field.text().strip():
-                QMessageBox.warning(self, "Campo Requerido", 
-                                  f"El campo '{name}' es requerido.")
+                self.show_styled_warning("Campo Requerido", 
+                                        f"El campo '{name}' es requerido.\n\n"
+                                        f"Por favor complete este campo antes de continuar.")
                 field.setFocus()
                 return False
         
         return True
+    
+    def show_styled_warning(self, title, message):
+        """Mostrar advertencia con estilo personalizado"""
+        msg_box = QMessageBox(self)
+        msg_box.setWindowTitle("⚠️ " + title)
+        msg_box.setText(message)
+        # msg_box.setIcon(QMessageBox.Icon.Warning)  # Eliminado para ganar espacio
+        
+        # Configurar botón personalizado
+        msg_box.addButton("OK", QMessageBox.ButtonRole.AcceptRole)
+        
+        # Estilo personalizado para el mensaje
+        msg_box.setStyleSheet("""
+        QMessageBox {
+            background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                stop:0 #f8f9fa, stop:1 #fff3e0);
+            border-radius: 8px;
+            min-width: 360px;
+            max-height: 120px;
+            min-height: 100px;
+        }
+        
+        QMessageBox QLabel {
+            font-size: 13px;
+            color: #2c3e50;
+            padding: 8px;
+            font-family: Arial, sans-serif;
+            background: transparent;
+            min-width: 340px;
+            text-align: left;
+        }
+        
+        QMessageBox QPushButton {
+            background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                stop:0 #FFB74D, stop:1 #FFA726);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            padding: 6px 20px;
+            font-size: 12px;
+            font-weight: bold;
+            font-family: Arial, sans-serif;
+            min-width: 70px;
+        }
+        
+        QMessageBox QPushButton:hover {
+            background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                stop:0 #FFA726, stop:1 #FF9800);
+        }
+        
+        QMessageBox QPushButton:pressed {
+            background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                stop:0 #FF9800, stop:1 #F57C00);
+        }
+        """)
+        
+        # Centrar el diálogo en la pantalla
+        msg_box.move(
+            self.x() + (self.width() - 360) // 2,
+            self.y() + (self.height() - 120) // 2
+        )
+        
+        msg_box.exec()
+    
+    def show_styled_success(self, title, message):
+        """Mostrar mensaje de éxito con estilo personalizado"""
+        msg_box = QMessageBox(self)
+        msg_box.setWindowTitle("✅ " + title)
+        msg_box.setText(message)
+        # msg_box.setIcon(QMessageBox.Icon.Information)  # Eliminado para ganar espacio
+        
+        # Configurar botón personalizado
+        msg_box.addButton("OK", QMessageBox.ButtonRole.AcceptRole)
+        
+        # Estilo personalizado para mensaje de éxito
+        msg_box.setStyleSheet("""
+        QMessageBox {
+            background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                stop:0 #f0f8f0, stop:1 #e8f5e8);
+            border-radius: 8px;
+            min-width: 380px;
+            min-height: 140px;
+        }
+        
+        QMessageBox QLabel {
+            font-size: 13px;
+            color: #2c3e50;
+            padding: 10px;
+            font-family: Arial, sans-serif;
+            background: transparent;
+            min-width: 340px;
+        }
+        
+        QMessageBox QPushButton {
+            background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                stop:0 #66BB6A, stop:1 #4CAF50);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            padding: 10px 25px;
+            font-size: 13px;
+            font-weight: bold;
+            font-family: Arial, sans-serif;
+            min-width: 80px;
+        }
+        
+        QMessageBox QPushButton:hover {
+            background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                stop:0 #4CAF50, stop:1 #388E3C);
+        }
+        
+        QMessageBox QPushButton:pressed {
+            background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                stop:0 #388E3C, stop:1 #2E7D32);
+        }
+        """)
+        
+        # Centrar el diálogo en la pantalla
+        msg_box.move(
+            self.x() + (self.width() - 380) // 2,
+            self.y() + (self.height() - 140) // 2
+        )
+        
+        msg_box.exec()
     
     def save_data(self):
         """Guardar datos del formulario"""
@@ -245,8 +370,10 @@ class InspectionFormDialog(QDialog):
         self.data_saved.emit(data)
         
         # Mostrar confirmación
-        QMessageBox.information(self, "Datos Guardados", 
-                              "✅ La información de inspección se ha guardado correctamente.")
+        self.show_styled_success("Datos Guardados", 
+                                "✅ Información guardada exitosamente\n\n"
+                                "La inspección se ha registrado correctamente.\n"
+                                "Los overlays ahora se muestran en el video.")
         
         # Cerrar dialog
         self.accept()

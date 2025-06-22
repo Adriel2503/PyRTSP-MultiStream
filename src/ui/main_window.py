@@ -79,22 +79,30 @@ class MainWindow(QMainWindow):
         widget = QWidget()
         widget.setObjectName("streamWidget")
         
-        layout = QVBoxLayout(widget)
-        layout.setContentsMargins(10, 10, 10, 10)
-        layout.setSpacing(10)
+        main_layout = QVBoxLayout(widget)
+        main_layout.setContentsMargins(10, 10, 10, 10)
+        main_layout.setSpacing(10)
         
         # === PANEL DE ESTADÍSTICAS ===
         self.stats_label = self._create_stats_label()
+        main_layout.addWidget(self.stats_label)
         
-        # === ÁREA DE VIDEO (EXPANDIDA) ===
+        # === ÁREA PRINCIPAL: VIDEO + BOTÓN ===
+        content_layout = QHBoxLayout()
+        content_layout.setSpacing(15)
+        
+        # === ÁREA DE VIDEO (TAMAÑO FIJO) ===
         self.video_widget = VideoWidget()
-        
         # Conectar señal del botón "+" del video widget
         self.video_widget.plus_button_clicked.connect(self.on_plus_button_clicked)
+        content_layout.addWidget(self.video_widget)
         
-        # Agregar componentes (sin barra superior)
-        layout.addWidget(self.stats_label)
-        layout.addWidget(self.video_widget)
+        # === PANEL LATERAL DERECHO ===
+        right_panel = self._create_right_panel()
+        content_layout.addWidget(right_panel)
+        
+        # Agregar el layout de contenido al layout principal
+        main_layout.addLayout(content_layout)
         
         # Aplicar estilo al widget de stream
         widget.setStyleSheet("""
@@ -105,6 +113,98 @@ class MainWindow(QMainWindow):
         """)
         
         return widget
+    
+    def _create_right_panel(self):
+        """Crear panel lateral derecho con botón '+' y otros controles"""
+        panel = QWidget()
+        panel.setObjectName("rightPanel")
+        panel.setMinimumWidth(200)
+        panel.setMaximumWidth(300)
+        
+        layout = QVBoxLayout(panel)
+        layout.setContentsMargins(15, 15, 15, 15)
+        layout.setSpacing(15)
+        
+        # === BOTÓN '+' PRINCIPAL ===
+        self.plus_button = QPushButton("+")
+        self.plus_button.setObjectName("plusButton")
+        self.plus_button.setMinimumSize(70, 70)
+        self.plus_button.setMaximumSize(70, 70)
+        self.plus_button.clicked.connect(self.on_plus_button_clicked)
+        
+        # Estilo del botón '+'
+        self.plus_button.setStyleSheet("""
+        QPushButton#plusButton {
+            background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                stop:0 rgba(255, 183, 77, 220), 
+                stop:1 rgba(255, 167, 38, 220));
+            color: white;
+            border: 3px solid rgba(255, 255, 255, 120);
+            border-radius: 35px;
+            font-size: 32px;
+            font-weight: bold;
+            font-family: Arial, sans-serif;
+        }
+        QPushButton#plusButton:hover {
+            background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                stop:0 rgba(255, 167, 38, 250), 
+                stop:1 rgba(255, 152, 0, 250));
+            border: 3px solid rgba(255, 255, 255, 180);
+            transform: scale(1.05);
+        }
+        QPushButton#plusButton:pressed {
+            background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                stop:0 rgba(255, 152, 0, 200), 
+                stop:1 rgba(245, 124, 0, 200));
+            border: 3px solid rgba(255, 255, 255, 220);
+        }
+        """)
+        
+        # === TÍTULO DEL PANEL ===
+        title_label = QLabel("🔧 CONTROLES")
+        title_label.setObjectName("rightPanelTitle")
+        title_label.setStyleSheet("""
+        QLabel#rightPanelTitle {
+            color: rgba(255, 167, 38, 255);
+            font-size: 14px;
+            font-weight: bold;
+            font-family: Arial, sans-serif;
+            padding: 5px;
+            text-align: center;
+        }
+        """)
+        title_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        
+        # === DESCRIPCIÓN DEL BOTÓN ===
+        desc_label = QLabel("Nueva\nInspección")
+        desc_label.setObjectName("buttonDescription")
+        desc_label.setStyleSheet("""
+        QLabel#buttonDescription {
+            color: rgba(255, 255, 255, 180);
+            font-size: 12px;
+            font-family: Arial, sans-serif;
+            text-align: center;
+            padding: 5px;
+        }
+        """)
+        desc_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        
+        # Agregar elementos al layout
+        layout.addWidget(title_label)
+        layout.addWidget(self.plus_button, alignment=Qt.AlignmentFlag.AlignCenter)
+        layout.addWidget(desc_label)
+        layout.addStretch()  # Empujar todo hacia arriba
+        
+        # Estilo del panel
+        panel.setStyleSheet("""
+        QWidget#rightPanel {
+            background: rgba(45, 45, 45, 150);
+            border-radius: 10px;
+            border: 1px solid rgba(255, 167, 38, 80);
+        }
+        """)
+        
+        return panel
     
     def _create_top_bar(self):
         """Crear barra superior con información y botón desconectar"""

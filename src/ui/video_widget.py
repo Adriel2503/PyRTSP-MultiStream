@@ -10,7 +10,7 @@ gi.require_version('Gst', '1.0')
 gi.require_version('GstVideo', '1.0')
 from gi.repository import Gst, GLib, GstVideo
 
-from PyQt6.QtWidgets import QFrame, QSizePolicy, QPushButton, QLabel
+from PyQt6.QtWidgets import QFrame, QSizePolicy, QLabel
 from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtGui import QFont
 
@@ -18,6 +18,8 @@ from ..utils.constants import (
     GSTREAMER_PIPELINE_TEMPLATE,
     VIDEO_WIDGET_STYLE,
     DEFAULT_VIDEO_SIZE,
+    VIDEO_SCALE_OPTIONS,
+    PREFERRED_VIDEO_SCALE,
     DEBUG_SHOW_FIRST_BUFFERS,
     DEBUG_BUFFER_INFO
 )
@@ -38,17 +40,28 @@ class VideoWidget(QFrame):
         self.bus = None
         self.metrics = StreamMetrics()
         self.setup_widget()
-        self.create_floating_button()
         self.create_overlay_labels()
         logger.info("VideoWidget inicializado")
         
     def setup_widget(self):
         """Configurar el widget para video"""
-        self.setMinimumSize(*DEFAULT_VIDEO_SIZE)
-        self.setStyleSheet(VIDEO_WIDGET_STYLE)
+        # Obtener tamaño según preferencia
+        video_size = VIDEO_SCALE_OPTIONS.get(PREFERRED_VIDEO_SCALE, DEFAULT_VIDEO_SIZE)
         
-        # Expandir para usar todo el espacio disponible
-        self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
+        logger.info(f"🎯 CONFIGURACIÓN DE VIDEO: {PREFERRED_VIDEO_SCALE}")
+        logger.info(f"📐 Tamaño del widget: {video_size[0]}x{video_size[1]}")
+        
+        if PREFERRED_VIDEO_SCALE in ['full', 'half', 'quarter']:
+            # Usar tamaño fijo para submúltiplos exactos
+            self.setFixedSize(*video_size)
+            logger.info(f"📏 Tamaño FIJO: {video_size[0]}x{video_size[1]} (sin bandas negras)")
+        else:
+            # Escalado automático para 'auto'
+            self.setMinimumSize(*video_size)
+            self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
+            logger.info(f"📈 Tamaño EXPANDIBLE: mínimo {video_size[0]}x{video_size[1]}")
+        
+        self.setStyleSheet(VIDEO_WIDGET_STYLE)
         
         # Asegurar que el widget sea nativo para overlay
         self.setAttribute(Qt.WidgetAttribute.WA_NativeWindow, True)
@@ -56,70 +69,11 @@ class VideoWidget(QFrame):
         
         logger.debug("Widget configurado para overlay nativo")
     
-    def create_floating_button(self):
-        """Crear botón flotante circular con símbolo '+' en esquina superior derecha"""
-        self.plus_button = QPushButton("+", self)
-        
-        # Configurar tamaño y posición inicial
-        button_size = 50
-        self.plus_button.setFixedSize(button_size, button_size)
-        
-        # Estilo circular moderno
-        self.plus_button.setStyleSheet("""
-            QPushButton {
-                background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
-                    stop:0 rgba(255, 183, 77, 200), 
-                    stop:1 rgba(255, 167, 38, 200));
-                color: white;
-                border: 3px solid rgba(255, 255, 255, 100);
-                border-radius: 25px;
-                font-size: 24px;
-                font-weight: bold;
-                font-family: Arial, sans-serif;
-            }
-            QPushButton:hover {
-                background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
-                    stop:0 rgba(255, 167, 38, 230), 
-                    stop:1 rgba(255, 152, 0, 230));
-                border: 3px solid rgba(255, 255, 255, 150);
-                transform: scale(1.05);
-            }
-            QPushButton:pressed {
-                background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
-                    stop:0 rgba(255, 152, 0, 200), 
-                    stop:1 rgba(245, 124, 0, 200));
-                border: 3px solid rgba(255, 255, 255, 200);
-            }
-        """)
-        
-        # Conectar señal
-        self.plus_button.clicked.connect(self.plus_button_clicked.emit)
-        
-        # Posicionar en esquina superior derecha
-        self.position_floating_button()
-        
-        # Asegurar que esté encima del video
-        self.plus_button.raise_()
-        
-        logger.debug("Botón flotante '+' creado en esquina superior derecha")
-    
-    def position_floating_button(self):
-        """Posicionar botón flotante en esquina superior derecha"""
-        if hasattr(self, 'plus_button'):
-            margin = 15  # Margen desde el borde
-            button_size = self.plus_button.width()
-            
-            # Calcular posición
-            x = self.width() - button_size - margin
-            y = margin
-            
-            self.plus_button.move(x, y)
+
     
     def resizeEvent(self, event):
-        """Reposicionar botón flotante cuando el widget se redimensiona"""
+        """Reposicionar overlays cuando el widget se redimensiona"""
         super().resizeEvent(event)
-        if hasattr(self, 'plus_button'):
-            self.position_floating_button()
         if hasattr(self, 'pozo_desde_label') and hasattr(self, 'pozo_hasta_label'):
             self.position_overlay_labels()
     
@@ -207,8 +161,6 @@ class VideoWidget(QFrame):
         if hasattr(self, 'pozo_desde_label') and hasattr(self, 'pozo_hasta_label'):
             self.pozo_desde_label.raise_()
             self.pozo_hasta_label.raise_()
-        if hasattr(self, 'plus_button'):
-            self.plus_button.raise_()
         
         # Pipeline con nombres específicos para fácil localización
         pipeline_str = GSTREAMER_PIPELINE_TEMPLATE.format(url=rtsp_url)

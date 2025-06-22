@@ -30,6 +30,23 @@ MAX_FRAME_INTERVALS_HISTORY = 30  # Máximo de intervalos de frame guardados
 DEFAULT_WINDOW_SIZE = (1200, 800)
 DEFAULT_VIDEO_SIZE = (800, 600)
 
+# === CONFIGURACIÓN DE VIDEO ===
+# Para video original de 2560x1440
+FULL_HD_VIDEO_SIZE = (2560, 1440)
+HALF_HD_VIDEO_SIZE = (1280, 720)    # Submúltiplo ÷2 - sin bandas negras
+QUARTER_HD_VIDEO_SIZE = (640, 360)  # Submúltiplo ÷4 - muy compacto
+
+# Opciones de resolución
+VIDEO_SCALE_OPTIONS = {
+    'full': FULL_HD_VIDEO_SIZE,      # 2560x1440 - Resolución completa
+    'half': HALF_HD_VIDEO_SIZE,      # 1280x720  - Mitad, sin bandas negras  
+    'quarter': QUARTER_HD_VIDEO_SIZE, # 640x360   - Cuarto, muy compacto
+    'auto': DEFAULT_VIDEO_SIZE       # 800x600   - Escalado automático
+}
+
+# Cambiar aquí para diferentes tamaños
+PREFERRED_VIDEO_SCALE = 'half'  # 'full', 'half', 'quarter', 'auto'
+
 # Estilos CSS
 STATS_LABEL_STYLE_TEMPLATE = """
 QLabel {{
@@ -89,4 +106,4 @@ STATUS_MESSAGES = {
 
 # === CONFIGURACIÓN DE LOGGING ===
 LOG_FORMAT = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-LOG_LEVEL = "INFO" 
+LOG_LEVEL = "INFO"  # Nivel normal de logging 
