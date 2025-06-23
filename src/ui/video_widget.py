@@ -5,10 +5,18 @@ Extrae la funcionalidad de SimpleGStreamerWidget del código original
 """
 
 import sys
+import datetime
 import gi
 gi.require_version('Gst', '1.0')
 gi.require_version('GstVideo', '1.0')
 from gi.repository import Gst, GLib, GstVideo
+
+# Importar Cairo si está disponible
+try:
+    import cairo
+    CAIRO_AVAILABLE = True
+except ImportError:
+    CAIRO_AVAILABLE = False
 
 from PyQt6.QtWidgets import QFrame, QSizePolicy, QLabel
 from PyQt6.QtCore import Qt, pyqtSignal
@@ -21,7 +29,11 @@ from ..utils.constants import (
     VIDEO_SCALE_OPTIONS,
     PREFERRED_VIDEO_SCALE,
     DEBUG_SHOW_FIRST_BUFFERS,
-    DEBUG_BUFFER_INFO
+    DEBUG_BUFFER_INFO,
+    CAIRO_OVERLAY_CONFIG,
+    TIMEOVERLAY_CONFIG,
+    TEXTOVERLAY_DESDE_CONFIG,
+    TEXTOVERLAY_HASTA_CONFIG
 )
 from ..utils.logger import setup_logger
 from ..metrics.stream_metrics import StreamMetrics
@@ -39,9 +51,15 @@ class VideoWidget(QFrame):
         self.pipeline = None
         self.bus = None
         self.metrics = StreamMetrics()
+        
+        # Referencias a overlays nativos de GStreamer
+        self.cairo_datetime = None
+        self.textoverlay_desde = None
+        self.textoverlay_hasta = None
+        
         self.setup_widget()
-        self.create_overlay_labels()
-        logger.info("VideoWidget inicializado")
+        # Eliminamos create_overlay_labels() ya que usaremos overlays nativos
+        logger.info("VideoWidget inicializado con overlays nativos")
         
     def setup_widget(self):
         """Configurar el widget para video"""
@@ -69,103 +87,150 @@ class VideoWidget(QFrame):
         
         logger.debug("Widget configurado para overlay nativo")
     
-
+    def _configure_native_overlays(self):
+        """Configurar overlays nativos de GStreamer"""
+        try:
+            # === CAIRO OVERLAY - Fecha y hora con fondo naranja transparente ===
+            self.cairo_datetime = self.pipeline.get_by_name("cairo_datetime")
+            if self.cairo_datetime and CAIRO_AVAILABLE:
+                # Conectar callback para dibujar la fecha/hora
+                self.cairo_datetime.connect("draw", self._on_cairo_draw)
+                logger.info("✅ Cairo overlay configurado - fecha/hora con fondo naranja")
+            elif self.cairo_datetime:
+                logger.warning("⚠️ Cairo no disponible, usando textoverlay simple")
+                # Fallback a textoverlay simple si Cairo no está disponible
+                # (implementar fallback si es necesario)
+            else:
+                logger.error("❌ No se encontró cairo_datetime en el pipeline")
+            
+            # === TEXTOVERLAY DESDE - Pozo desde (inferior izquierda) ===
+            self.textoverlay_desde = self.pipeline.get_by_name("textoverlay_desde")
+            if self.textoverlay_desde:
+                for prop, value in TEXTOVERLAY_DESDE_CONFIG.items():
+                    prop_name = prop.replace('_', '-')
+                    try:
+                        self.textoverlay_desde.set_property(prop_name, value)
+                        logger.debug(f"📍 Overlay DESDE: {prop_name} = {value}")
+                    except Exception as e:
+                        logger.warning(f"No se pudo configurar DESDE {prop_name}: {e}")
+                logger.info("✅ Overlay POZO DESDE configurado")
+            
+            # === TEXTOVERLAY HASTA - Pozo hasta (inferior derecha) ===
+            self.textoverlay_hasta = self.pipeline.get_by_name("textoverlay_hasta")
+            if self.textoverlay_hasta:
+                for prop, value in TEXTOVERLAY_HASTA_CONFIG.items():
+                    prop_name = prop.replace('_', '-')
+                    try:
+                        self.textoverlay_hasta.set_property(prop_name, value)
+                        logger.debug(f"📍 Overlay HASTA: {prop_name} = {value}")
+                    except Exception as e:
+                        logger.warning(f"No se pudo configurar HASTA {prop_name}: {e}")
+                logger.info("✅ Overlay POZO HASTA configurado")
+                
+        except Exception as e:
+            logger.error(f"❌ Error configurando overlays nativos: {e}")
+    
+    def _on_cairo_draw(self, element, context, timestamp, duration, user_data=None):
+        """Callback para dibujar fecha/hora con fondo naranja transparente usando Cairo"""
+        if not CAIRO_AVAILABLE:
+            return False
+            
+        try:
+            config = CAIRO_OVERLAY_CONFIG
+            
+            # Obtener fecha/hora actual
+            now = datetime.datetime.now()
+            datetime_text = now.strftime(config['datetime_format'])
+            
+            # Configurar fuente
+            context.select_font_face(
+                config['font_family'], 
+                cairo.FONT_SLANT_NORMAL, 
+                cairo.FONT_WEIGHT_BOLD if config['font_weight'] == 'bold' else cairo.FONT_WEIGHT_NORMAL
+            )
+            context.set_font_size(config['font_size'])
+            
+            # Obtener dimensiones del texto
+            text_extents = context.text_extents(datetime_text)
+            text_width = text_extents.width
+            text_height = text_extents.height
+            
+            # Calcular posición (más a la derecha y más abajo)
+            padding = config['padding']
+            x = padding + 80  # Desplazar 80 píxeles más a la derecha
+            y = padding + text_height + 40  # Desplazar 40 píxeles más abajo
+            
+            # Dimensiones del fondo
+            bg_width = text_width + (padding * 2)
+            bg_height = text_height + (padding * 1.5)
+            
+            # === DIBUJAR FONDO NARANJA TRANSPARENTE ===
+            bg_color = config['bg_color']
+            context.set_source_rgba(bg_color[0], bg_color[1], bg_color[2], bg_color[3])
+            
+            # Rectángulo con esquinas redondeadas
+            radius = config['border_radius']
+            context.new_path()
+            context.arc(x - padding + radius, y - text_height - padding/2 + radius, radius, 3.14159, 3*3.14159/2)
+            context.arc(x - padding + bg_width - radius, y - text_height - padding/2 + radius, radius, 3*3.14159/2, 0)
+            context.arc(x - padding + bg_width - radius, y - padding/2 + text_height - radius, radius, 0, 3.14159/2)
+            context.arc(x - padding + radius, y - padding/2 + text_height - radius, radius, 3.14159/2, 3.14159)
+            context.close_path()
+            context.fill()
+            
+            # === DIBUJAR TEXTO BLANCO ===
+            text_color = config['text_color']
+            context.set_source_rgba(text_color[0], text_color[1], text_color[2], text_color[3])
+            context.move_to(x, y)
+            context.show_text(datetime_text)
+            
+            return True
+            
+        except Exception as e:
+            logger.error(f"❌ Error en Cairo overlay: {e}")
+            return False
     
     def resizeEvent(self, event):
-        """Reposicionar overlays cuando el widget se redimensiona"""
+        """Manejar redimensionamiento del widget"""
         super().resizeEvent(event)
-        if hasattr(self, 'pozo_desde_label') and hasattr(self, 'pozo_hasta_label'):
-            self.position_overlay_labels()
-    
-    def create_overlay_labels(self):
-        """Crear labels de overlay para mostrar POZO DESDE y POZO HASTA"""
-        # Label para POZO DESDE (izquierda)
-        self.pozo_desde_label = QLabel("", self)
-        self.pozo_desde_label.setObjectName("pozoDesdeLabel")
-        self.pozo_desde_label.setVisible(False)  # Oculto inicialmente
-        
-        # Label para POZO HASTA (derecha)
-        self.pozo_hasta_label = QLabel("", self)
-        self.pozo_hasta_label.setObjectName("pozoHastaLabel")
-        self.pozo_hasta_label.setVisible(False)  # Oculto inicialmente
-        
-        # Estilo para ambos labels - más visible
-        overlay_style = """
-            QLabel {
-                background: rgba(255, 167, 38, 200);
-                color: white;
-                border: 3px solid white;
-                border-radius: 10px;
-                padding: 10px 15px;
-                font-size: 16px;
-                font-weight: bold;
-                font-family: Arial, sans-serif;
-            }
-        """
-        
-        self.pozo_desde_label.setStyleSheet(overlay_style)
-        self.pozo_hasta_label.setStyleSheet(overlay_style)
-        
-        # Posicionar labels
-        self.position_overlay_labels()
-        
-        # Asegurar que estén encima del video
-        self.pozo_desde_label.raise_()
-        self.pozo_hasta_label.raise_()
-        
-        logger.debug("Labels de overlay creados")
-    
-    def position_overlay_labels(self):
-        """Posicionar labels de overlay en el video"""
-        if hasattr(self, 'pozo_desde_label') and hasattr(self, 'pozo_hasta_label'):
-            margin = 20
-            
-            # POZO DESDE - Esquina inferior izquierda
-            self.pozo_desde_label.adjustSize()
-            x_desde = margin
-            y_desde = self.height() - self.pozo_desde_label.height() - margin
-            self.pozo_desde_label.move(x_desde, y_desde)
-            
-            # POZO HASTA - Esquina inferior derecha
-            self.pozo_hasta_label.adjustSize()
-            x_hasta = self.width() - self.pozo_hasta_label.width() - margin
-            y_hasta = self.height() - self.pozo_hasta_label.height() - margin
-            self.pozo_hasta_label.move(x_hasta, y_hasta)
+        # Los overlays nativos se redimensionan automáticamente con el video
+        logger.debug(f"Widget redimensionado a: {event.size().width()}x{event.size().height()}")
     
     def update_pozo_overlays(self, pozo_desde, pozo_hasta):
-        """Actualizar texto de los overlays de pozos"""
-        if hasattr(self, 'pozo_desde_label') and hasattr(self, 'pozo_hasta_label'):
-            # Actualizar POZO DESDE
-            if pozo_desde:
-                self.pozo_desde_label.setText(f"DESDE: {pozo_desde}")
-                self.pozo_desde_label.setVisible(True)
-            else:
-                self.pozo_desde_label.setVisible(False)
+        """Actualizar texto de los overlays nativos de pozos"""
+        try:
+            # Actualizar POZO DESDE (overlay nativo)
+            if self.textoverlay_desde:
+                if pozo_desde:
+                    texto_desde = f"DESDE: {pozo_desde}"
+                    self.textoverlay_desde.set_property('text', texto_desde)
+                    logger.debug(f"📍 Overlay DESDE actualizado: {texto_desde}")
+                else:
+                    self.textoverlay_desde.set_property('text', '')
+                    logger.debug("📍 Overlay DESDE ocultado")
             
-            # Actualizar POZO HASTA
-            if pozo_hasta:
-                self.pozo_hasta_label.setText(f"HASTA: {pozo_hasta}")
-                self.pozo_hasta_label.setVisible(True)
-            else:
-                self.pozo_hasta_label.setVisible(False)
+            # Actualizar POZO HASTA (overlay nativo)
+            if self.textoverlay_hasta:
+                if pozo_hasta:
+                    texto_hasta = f"HASTA: {pozo_hasta}"
+                    self.textoverlay_hasta.set_property('text', texto_hasta)
+                    logger.debug(f"📍 Overlay HASTA actualizado: {texto_hasta}")
+                else:
+                    self.textoverlay_hasta.set_property('text', '')
+                    logger.debug("📍 Overlay HASTA ocultado")
             
-            # Reposicionar después de cambiar texto
-            self.position_overlay_labels()
+            logger.info(f"✅ Overlays nativos actualizados: DESDE={pozo_desde}, HASTA={pozo_hasta}")
             
-            logger.info(f"Overlays actualizados: DESDE={pozo_desde}, HASTA={pozo_hasta}")
+        except Exception as e:
+            logger.error(f"❌ Error actualizando overlays nativos: {e}")
     
     def start_stream(self, rtsp_url):
-        """Iniciar stream con pipeline optimizado"""
-        
-        # Asegurar que los overlays estén siempre encima cuando inicia el stream
-        if hasattr(self, 'pozo_desde_label') and hasattr(self, 'pozo_hasta_label'):
-            self.pozo_desde_label.raise_()
-            self.pozo_hasta_label.raise_()
+        """Iniciar stream con pipeline optimizado y overlays nativos"""
         
         # Pipeline con nombres específicos para fácil localización
         pipeline_str = GSTREAMER_PIPELINE_TEMPLATE.format(url=rtsp_url)
         
-        logger.info(f"Iniciando pipeline:")
+        logger.info(f"🚀 Iniciando pipeline con overlays nativos:")
         logger.info(f"URL: {rtsp_url}")
         logger.debug(f"Pipeline: {pipeline_str}")
         
@@ -175,6 +240,9 @@ class VideoWidget(QFrame):
         try:
             # Crear pipeline
             self.pipeline = Gst.parse_launch(pipeline_str)
+            
+            # === CONFIGURAR OVERLAYS NATIVOS ===
+            self._configure_native_overlays()
             
             # Obtener el video sink
             videosink = self.pipeline.get_by_name("videosink")

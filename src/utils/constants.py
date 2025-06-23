@@ -11,14 +11,77 @@ APP_TITLE = "🚀 Cámara IP - GStreamer + PyQt6 (D3D11 Overlay)"
 # === CONFIGURACIÓN DE GSTREAMER ===
 DEFAULT_RTSP_URL = "rtsp://admin:Prototipo@192.168.18.5:554/Streaming/Channels/101"
 
-# Pipeline GStreamer optimizado
+# Pipeline GStreamer optimizado CON OVERLAYS NATIVOS
 GSTREAMER_PIPELINE_TEMPLATE = """
 rtspsrc location={url} protocols=tcp latency=0 name=rtspsrc
 ! rtph264depay name=depay
 ! avdec_h264 name=decoder
 ! videoconvert name=convert
+! cairooverlay name=cairo_datetime
+! textoverlay name=textoverlay_desde
+! textoverlay name=textoverlay_hasta
 ! d3d11videosink name=videosink
 """
+
+# === CONFIGURACIÓN DE OVERLAYS NATIVOS ===
+# El cairooverlay se configurará programáticamente para el fondo naranja transparente
+CAIRO_OVERLAY_CONFIG = {
+    'datetime_format': '%Y/%m/%d %H:%M:%S',  # Formato de fecha/hora
+    'font_family': 'Arial',
+    'font_size': 32,                         # Aumentado de 24 a 32 (MUY GRANDE)
+    'font_weight': 'bold',
+    'text_color': (1.0, 1.0, 1.0, 1.0),     # Blanco RGBA
+    'bg_color': (1.0, 0.65, 0.15, 0.2),     # Naranja MÁS transparente con alpha 0.5
+    'padding': 25,                           # Aumentado de 20 a 25 (más espacio)
+    'border_radius': 15,                     # Aumentado de 12 a 15 (más redondeado)
+    'position': 'top-left'
+}
+
+# Configuración simplificada para timestamp (respaldo si cairo no funciona)
+TIMEOVERLAY_CONFIG = {
+    'halignment': 'left',        # Alineación horizontal: left, center, right
+    'valignment': 'top',         # Alineación vertical: top, center, bottom  
+    'time-format': '%Y/%m/%d %H:%M:%S',  # Formato: año/mes/día hora:minuto:segundo
+    'font-desc': 'Arial Bold 16',        # Fuente y tamaño
+    'color': 0xFFFFFFFF,                 # Color blanco (ARGB)
+    'outline-color': 0xFFA726FF,         # Contorno naranja (#FFA726)
+    'xpad': 15,                          # Padding horizontal aumentado
+    'ypad': 12,                          # Padding vertical aumentado  
+    'draw-shadow': True,                 # Sombra para mejor visibilidad
+    'draw-outline': True,                # Contorno para mejor contraste
+    'shaded-background': True,           # Fondo sombreado
+    'auto-resize': True                  # Redimensionar automáticamente
+}
+
+# Configuración para overlay de "POZO DESDE" (esquina inferior izquierda)
+TEXTOVERLAY_DESDE_CONFIG = {
+    'text': '',                          # Texto inicial vacío
+    'halignment': 'left',                # Izquierda
+    'valignment': 'bottom',              # Abajo
+    'font-desc': 'Arial Bold 14',        # Fuente
+    'color': 0xFFFFFFFF,                 # Blanco
+    'outline-color': 0xFFA726FF,         # Contorno naranja (#FFA726)
+    'xpad': 15,
+    'ypad': 15,
+    'draw-shadow': True,
+    'draw-outline': True,
+    'line-alignment': 'left'
+}
+
+# Configuración para overlay de "POZO HASTA" (esquina inferior derecha)  
+TEXTOVERLAY_HASTA_CONFIG = {
+    'text': '',                          # Texto inicial vacío
+    'halignment': 'right',               # Derecha
+    'valignment': 'bottom',              # Abajo
+    'font-desc': 'Arial Bold 14',        # Fuente
+    'color': 0xFFFFFFFF,                 # Blanco
+    'outline-color': 0xFFA726FF,         # Contorno naranja (#FFA726)
+    'xpad': 15,
+    'ypad': 15,
+    'draw-shadow': True,
+    'draw-outline': True,
+    'line-alignment': 'right'
+}
 
 # === CONFIGURACIÓN DE MÉTRICAS ===
 DEFAULT_METRICS_WINDOW_SECONDS = 5  # Ventana deslizante de 5 segundos
