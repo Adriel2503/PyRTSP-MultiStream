@@ -66,6 +66,15 @@ class VideoWidget(QFrame):
         self.pozo_inicio_text = ""
         self.pozo_fin_text = ""
         
+        # Control de visibilidad de overlays (por defecto todos activos)
+        self.overlay_config = {
+            'grid_enabled': True,
+            'fecha_enabled': True,
+            'tramo_enabled': True,
+            'pozo_inicial_enabled': True,
+            'pozo_final_enabled': True
+        }
+        
         self.setup_widget()
         # Eliminamos create_overlay_labels() ya que usaremos overlays nativos
         logger.info("VideoWidget inicializado con overlays nativos")
@@ -165,6 +174,10 @@ class VideoWidget(QFrame):
         if not CAIRO_AVAILABLE:
             return False
             
+        # Verificar si la fecha está habilitada en la configuración
+        if not self.overlay_config.get('fecha_enabled', True):
+            return False
+            
         try:
             config = CAIRO_OVERLAY_CONFIG
             
@@ -226,6 +239,10 @@ class VideoWidget(QFrame):
     def _on_cairo_draw_ref_tramo(self, element, context, timestamp, duration, user_data=None):
         """Callback para dibujar REF. TRAMO con fondo naranja transparente usando Cairo"""
         if not CAIRO_AVAILABLE or not self.ref_tramo_text:
+            return False
+            
+        # Verificar si el tramo está habilitado en la configuración
+        if not self.overlay_config.get('tramo_enabled', True):
             return False
             
         try:
@@ -302,10 +319,14 @@ class VideoWidget(QFrame):
         if not CAIRO_AVAILABLE:
             return False
             
+        # Verificar si las cuadrículas están habilitadas en la configuración
+        if not self.overlay_config.get('grid_enabled', True):
+            return False
+            
         try:
             config = CAIRO_GRID_CONFIG
             
-            # Verificar si la malla está habilitada
+            # Verificar si la malla está habilitada en las constantes
             if not config.get('enabled', True):
                 return False
             
@@ -350,6 +371,10 @@ class VideoWidget(QFrame):
     def _on_cairo_draw_pozo_inicio(self, element, context, timestamp, duration, user_data=None):
         """Callback para dibujar POZO INICIO con fondo naranja transparente usando Cairo - ESQUINA INFERIOR IZQUIERDA"""
         if not CAIRO_AVAILABLE or not self.pozo_inicio_text:
+            return False
+            
+        # Verificar si el pozo inicial está habilitado en la configuración
+        if not self.overlay_config.get('pozo_inicial_enabled', True):
             return False
             
         try:
@@ -419,6 +444,10 @@ class VideoWidget(QFrame):
     def _on_cairo_draw_pozo_fin(self, element, context, timestamp, duration, user_data=None):
         """Callback para dibujar POZO FIN con fondo naranja transparente usando Cairo - ESQUINA INFERIOR DERECHA"""
         if not CAIRO_AVAILABLE or not self.pozo_fin_text:
+            return False
+            
+        # Verificar si el pozo final está habilitado en la configuración
+        if not self.overlay_config.get('pozo_final_enabled', True):
             return False
             
         try:
@@ -495,6 +524,11 @@ class VideoWidget(QFrame):
         """Actualizar texto de POZO FIN"""
         self.pozo_fin_text = pozo_fin if pozo_fin else ""
         logger.info(f"✅ POZO FIN actualizado: '{self.pozo_fin_text}'")
+    
+    def update_overlay_config(self, config):
+        """Actualizar configuración de visibilidad de overlays"""
+        self.overlay_config.update(config)
+        logger.info(f"Configuración de overlays actualizada: {self.overlay_config}")
     
     def resizeEvent(self, event):
         """Manejar redimensionamiento del widget"""

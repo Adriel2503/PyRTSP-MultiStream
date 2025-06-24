@@ -31,6 +31,7 @@ from ..utils.logger import setup_logger
 from .video_widget import VideoWidget
 from .login_screen import LoginScreen
 from .inspection_form_dialog import InspectionFormDialog
+from .overlay_config_dialog import OverlayConfigDialog
 
 logger = setup_logger("MainWindow")
 
@@ -525,56 +526,55 @@ class MainWindow(QMainWindow):
     
     def on_settings_clicked(self):
         """Manejar clic en botón de configuraciones"""
-        logger.info("⚙️ Botón CONFIGURACIONES presionado")
+        logger.info("⚙️ Botón CONFIGURACIONES presionado - Abriendo configuración de overlays")
         
-        # Mostrar panel de configuraciones temporal
-        msg = QMessageBox(self)
-        msg.setWindowTitle("⚙️ Configuraciones del Sistema")
-        msg.setText("🎛️ Panel de Configuraciones")
-        msg.setInformativeText(
-            "Próximamente disponible:\n\n"
-            "⏰ Formato de fecha/hora\n"
-            "🎨 Colores y transparencias\n"
-            "📐 Tamaño de textos\n"
-            "🎯 Posición de overlays\n"
-            "📊 Configuración de métricas\n"
-            "🎥 Resolución de video\n"
-            "🔧 Configuración de cámara\n"
-            "💾 Opciones de grabación"
-        )
-        msg.setIcon(QMessageBox.Icon.Information)
-        msg.setStandardButtons(QMessageBox.StandardButton.Ok)
+        # Obtener configuración actual del video widget
+        current_config = {}
+        if self.video_widget:
+            current_config = self.video_widget.overlay_config.copy()
+            logger.info(f"Configuración actual obtenida: {current_config}")
         
-        # Estilo personalizado para el mensaje
-        msg.setStyleSheet("""
-        QMessageBox {
-            background-color: #2d2d2d;
-            color: white;
-            font-family: Arial, sans-serif;
-        }
-        QMessageBox QLabel {
-            color: white;
-            font-size: 12px;
-        }
-        QMessageBox QPushButton {
-            background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
-                stop:0 rgba(255, 167, 38, 220), 
-                stop:1 rgba(255, 152, 0, 220));
-            color: white;
-            border: none;
-            padding: 8px 16px;
-            border-radius: 4px;
-            font-weight: bold;
-            font-size: 12px;
-        }
-        QPushButton:hover {
-            background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
-                stop:0 rgba(255, 152, 0, 250), 
-                stop:1 rgba(245, 124, 0, 250));
-        }
-        """)
+        # Crear y mostrar el diálogo de configuración de overlays
+        config_dialog = OverlayConfigDialog(self, current_config)
         
-        msg.exec()
+        # Conectar señal para recibir cambios de configuración
+        config_dialog.overlay_config_changed.connect(self.on_overlay_config_changed)
+        
+        # Mostrar diálogo modal
+        config_dialog.exec()
+    
+    def on_overlay_config_changed(self, config):
+        """Manejar cambios en la configuración de overlays"""
+        logger.info(f"Configuración de overlays cambiada: {config}")
+        
+        # Aplicar configuración al video widget si está disponible
+        if self.video_widget:
+            self.video_widget.update_overlay_config(config)
+            logger.info("Configuración aplicada al video widget")
+        else:
+            logger.warning("Video widget no disponible para aplicar configuración")
+        
+        # Mostrar confirmación al usuario
+        enabled_items = []
+        if config.get('grid_enabled', False):
+            enabled_items.append("📐 Cuadrículas")
+        if config.get('fecha_enabled', False):
+            enabled_items.append("📅 Fecha y hora")
+        if config.get('tramo_enabled', False):
+            enabled_items.append("🔗 Referencia de tramo")
+        if config.get('pozo_inicial_enabled', False):
+            enabled_items.append("⬇️ Pozo inicial")
+        if config.get('pozo_final_enabled', False):
+            enabled_items.append("⬆️ Pozo final")
+        
+        if enabled_items:
+            items_text = "\n".join(enabled_items)
+            summary = f"✅ Configuración aplicada exitosamente\n\nElementos activos:\n{items_text}"
+        else:
+            summary = "⚠️ Todos los overlays han sido deshabilitados"
+        
+        # Mostrar confirmación
+        QMessageBox.information(self, "⚙️ Configuración Aplicada", summary)
     
     def start_stats_monitoring(self):
         """Iniciar monitoreo de estadísticas en tiempo real"""
