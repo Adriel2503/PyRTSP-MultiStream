@@ -11,19 +11,34 @@ APP_TITLE = "🚀 Cámara IP - GStreamer + PyQt6 (D3D11 Overlay)"
 # === CONFIGURACIÓN DE GSTREAMER ===
 DEFAULT_RTSP_URL = "rtsp://admin:Prototipo@192.168.18.5:554/Streaming/Channels/101"
 
-# Pipeline GStreamer optimizado CON OVERLAYS NATIVOS
+# Pipeline GStreamer optimizado CON OVERLAYS NATIVOS (5 overlays: malla + 4 textos)
 GSTREAMER_PIPELINE_TEMPLATE = """
 rtspsrc location={url} protocols=tcp latency=0 name=rtspsrc
 ! rtph264depay name=depay
 ! avdec_h264 name=decoder
 ! videoconvert name=convert
+! cairooverlay name=cairo_grid
 ! cairooverlay name=cairo_datetime
-! textoverlay name=textoverlay_desde
-! textoverlay name=textoverlay_hasta
+! cairooverlay name=cairo_ref_tramo
+! cairooverlay name=cairo_pozo_inicio
+! cairooverlay name=cairo_pozo_fin
 ! d3d11videosink name=videosink
 """
 
 # === CONFIGURACIÓN DE OVERLAYS NATIVOS ===
+
+# Configuración para MALLA/GRILLA (se dibuja primero, debajo de los textos)
+CAIRO_GRID_CONFIG = {
+    'enabled': True,                         # Habilitar/deshabilitar malla
+    'line_color': (1.0, 1.0, 1.0, 0.8),    # Blanco semi-transparente RGBA
+    'line_width': 1,                         # Grosor de líneas en píxeles
+    'grid_spacing_x': 400,                    # Espaciado horizontal entre líneas (80px)
+    'grid_spacing_y': 200,                    # Espaciado vertical entre líneas (60px)
+    'start_offset_x': 50,                    # Offset inicial horizontal (40px desde borde)
+    'start_offset_y': 40,                    # Offset inicial vertical (30px desde borde)
+    'changeable_color': True                 # Permitir cambio de color en el futuro
+}
+
 # El cairooverlay se configurará programáticamente para el fondo naranja transparente
 CAIRO_OVERLAY_CONFIG = {
     'datetime_format': '%Y/%m/%d %H:%M:%S',  # Formato de fecha/hora
@@ -31,10 +46,49 @@ CAIRO_OVERLAY_CONFIG = {
     'font_size': 32,                         # Aumentado de 24 a 32 (MUY GRANDE)
     'font_weight': 'bold',
     'text_color': (1.0, 1.0, 1.0, 1.0),     # Blanco RGBA
-    'bg_color': (1.0, 0.65, 0.15, 0.2),     # Naranja MÁS transparente con alpha 0.5
+    'bg_color': (1.0, 0.65, 0.15, 0.2),     # Naranja MÁS transparente con alpha 0.2
     'padding': 25,                           # Aumentado de 20 a 25 (más espacio)
     'border_radius': 15,                     # Aumentado de 12 a 15 (más redondeado)
     'position': 'top-left'
+}
+
+# Configuración para REF. TRAMO (esquina superior derecha)
+CAIRO_REF_TRAMO_CONFIG = {
+    'font_family': 'Arial',
+    'font_size': 32,                         # Mismo tamaño que fecha/hora
+    'font_weight': 'bold',
+    'text_color': (1.0, 1.0, 1.0, 1.0),     # Blanco RGBA
+    'bg_color': (1.0, 0.65, 0.15, 0.2),     # Mismo naranja transparente
+    'padding': 25,                           # Mismo padding
+    'border_radius': 15,                     # Mismas esquinas redondeadas
+    'position': 'top-right',
+    'text': ''                               # Texto inicial vacío
+}
+
+# Configuración para POZO INICIO (esquina inferior izquierda)
+CAIRO_POZO_INICIO_CONFIG = {
+    'font_family': 'Arial',
+    'font_size': 32,                         # Mismo tamaño que otros overlays
+    'font_weight': 'bold',
+    'text_color': (1.0, 1.0, 1.0, 1.0),     # Blanco RGBA
+    'bg_color': (1.0, 0.65, 0.15, 0.2),     # Mismo naranja transparente
+    'padding': 25,                           # Mismo padding
+    'border_radius': 15,                     # Mismas esquinas redondeadas
+    'position': 'bottom-left',
+    'text': ''                               # Texto inicial vacío
+}
+
+# Configuración para POZO FIN (esquina inferior derecha)
+CAIRO_POZO_FIN_CONFIG = {
+    'font_family': 'Arial',
+    'font_size': 32,                         # Mismo tamaño que otros overlays
+    'font_weight': 'bold',
+    'text_color': (1.0, 1.0, 1.0, 1.0),     # Blanco RGBA
+    'bg_color': (1.0, 0.65, 0.15, 0.2),     # Mismo naranja transparente
+    'padding': 25,                           # Mismo padding
+    'border_radius': 15,                     # Mismas esquinas redondeadas
+    'position': 'bottom-right',
+    'text': ''                               # Texto inicial vacío
 }
 
 # Configuración simplificada para timestamp (respaldo si cairo no funciona)
@@ -53,35 +107,7 @@ TIMEOVERLAY_CONFIG = {
     'auto-resize': True                  # Redimensionar automáticamente
 }
 
-# Configuración para overlay de "POZO DESDE" (esquina inferior izquierda)
-TEXTOVERLAY_DESDE_CONFIG = {
-    'text': '',                          # Texto inicial vacío
-    'halignment': 'left',                # Izquierda
-    'valignment': 'bottom',              # Abajo
-    'font-desc': 'Arial Bold 14',        # Fuente
-    'color': 0xFFFFFFFF,                 # Blanco
-    'outline-color': 0xFFA726FF,         # Contorno naranja (#FFA726)
-    'xpad': 15,
-    'ypad': 15,
-    'draw-shadow': True,
-    'draw-outline': True,
-    'line-alignment': 'left'
-}
 
-# Configuración para overlay de "POZO HASTA" (esquina inferior derecha)  
-TEXTOVERLAY_HASTA_CONFIG = {
-    'text': '',                          # Texto inicial vacío
-    'halignment': 'right',               # Derecha
-    'valignment': 'bottom',              # Abajo
-    'font-desc': 'Arial Bold 14',        # Fuente
-    'color': 0xFFFFFFFF,                 # Blanco
-    'outline-color': 0xFFA726FF,         # Contorno naranja (#FFA726)
-    'xpad': 15,
-    'ypad': 15,
-    'draw-shadow': True,
-    'draw-outline': True,
-    'line-alignment': 'right'
-}
 
 # === CONFIGURACIÓN DE MÉTRICAS ===
 DEFAULT_METRICS_WINDOW_SECONDS = 5  # Ventana deslizante de 5 segundos

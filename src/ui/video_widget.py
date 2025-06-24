@@ -30,10 +30,12 @@ from ..utils.constants import (
     PREFERRED_VIDEO_SCALE,
     DEBUG_SHOW_FIRST_BUFFERS,
     DEBUG_BUFFER_INFO,
+    CAIRO_GRID_CONFIG,
     CAIRO_OVERLAY_CONFIG,
-    TIMEOVERLAY_CONFIG,
-    TEXTOVERLAY_DESDE_CONFIG,
-    TEXTOVERLAY_HASTA_CONFIG
+    CAIRO_REF_TRAMO_CONFIG,
+    CAIRO_POZO_INICIO_CONFIG,
+    CAIRO_POZO_FIN_CONFIG,
+    TIMEOVERLAY_CONFIG
 )
 from ..utils.logger import setup_logger
 from ..metrics.stream_metrics import StreamMetrics
@@ -53,9 +55,16 @@ class VideoWidget(QFrame):
         self.metrics = StreamMetrics()
         
         # Referencias a overlays nativos de GStreamer
+        self.cairo_grid = None
         self.cairo_datetime = None
-        self.textoverlay_desde = None
-        self.textoverlay_hasta = None
+        self.cairo_ref_tramo = None
+        self.cairo_pozo_inicio = None
+        self.cairo_pozo_fin = None
+        
+        # Variables para almacenar textos de overlays
+        self.ref_tramo_text = ""
+        self.pozo_inicio_text = ""
+        self.pozo_fin_text = ""
         
         self.setup_widget()
         # Eliminamos create_overlay_labels() ya que usaremos overlays nativos
@@ -90,11 +99,22 @@ class VideoWidget(QFrame):
     def _configure_native_overlays(self):
         """Configurar overlays nativos de GStreamer"""
         try:
+            # === CAIRO OVERLAY MALLA/GRILLA - Se dibuja primero (debajo de los textos) ===
+            self.cairo_grid = self.pipeline.get_by_name("cairo_grid")
+            if self.cairo_grid and CAIRO_AVAILABLE:
+                # Conectar callback para dibujar la malla
+                self.cairo_grid.connect("draw", self._on_cairo_draw_grid)
+                logger.info("✅ Cairo overlay MALLA configurado - líneas blancas de fondo")
+            elif self.cairo_grid:
+                logger.warning("⚠️ Cairo no disponible para MALLA")
+            else:
+                logger.error("❌ No se encontró cairo_grid en el pipeline")
+            
             # === CAIRO OVERLAY - Fecha y hora con fondo naranja transparente ===
             self.cairo_datetime = self.pipeline.get_by_name("cairo_datetime")
             if self.cairo_datetime and CAIRO_AVAILABLE:
                 # Conectar callback para dibujar la fecha/hora
-                self.cairo_datetime.connect("draw", self._on_cairo_draw)
+                self.cairo_datetime.connect("draw", self._on_cairo_draw_datetime)
                 logger.info("✅ Cairo overlay configurado - fecha/hora con fondo naranja")
             elif self.cairo_datetime:
                 logger.warning("⚠️ Cairo no disponible, usando textoverlay simple")
@@ -103,34 +123,44 @@ class VideoWidget(QFrame):
             else:
                 logger.error("❌ No se encontró cairo_datetime en el pipeline")
             
-            # === TEXTOVERLAY DESDE - Pozo desde (inferior izquierda) ===
-            self.textoverlay_desde = self.pipeline.get_by_name("textoverlay_desde")
-            if self.textoverlay_desde:
-                for prop, value in TEXTOVERLAY_DESDE_CONFIG.items():
-                    prop_name = prop.replace('_', '-')
-                    try:
-                        self.textoverlay_desde.set_property(prop_name, value)
-                        logger.debug(f"📍 Overlay DESDE: {prop_name} = {value}")
-                    except Exception as e:
-                        logger.warning(f"No se pudo configurar DESDE {prop_name}: {e}")
-                logger.info("✅ Overlay POZO DESDE configurado")
+            # === CAIRO OVERLAY REF. TRAMO - Esquina superior derecha ===
+            self.cairo_ref_tramo = self.pipeline.get_by_name("cairo_ref_tramo")
+            if self.cairo_ref_tramo and CAIRO_AVAILABLE:
+                # Conectar callback para dibujar REF. TRAMO
+                self.cairo_ref_tramo.connect("draw", self._on_cairo_draw_ref_tramo)
+                logger.info("✅ Cairo overlay REF. TRAMO configurado - esquina superior derecha")
+            elif self.cairo_ref_tramo:
+                logger.warning("⚠️ Cairo no disponible para REF. TRAMO")
+            else:
+                logger.error("❌ No se encontró cairo_ref_tramo en el pipeline")
             
-            # === TEXTOVERLAY HASTA - Pozo hasta (inferior derecha) ===
-            self.textoverlay_hasta = self.pipeline.get_by_name("textoverlay_hasta")
-            if self.textoverlay_hasta:
-                for prop, value in TEXTOVERLAY_HASTA_CONFIG.items():
-                    prop_name = prop.replace('_', '-')
-                    try:
-                        self.textoverlay_hasta.set_property(prop_name, value)
-                        logger.debug(f"📍 Overlay HASTA: {prop_name} = {value}")
-                    except Exception as e:
-                        logger.warning(f"No se pudo configurar HASTA {prop_name}: {e}")
-                logger.info("✅ Overlay POZO HASTA configurado")
+            # === CAIRO OVERLAY POZO INICIO - Esquina inferior izquierda ===
+            self.cairo_pozo_inicio = self.pipeline.get_by_name("cairo_pozo_inicio")
+            if self.cairo_pozo_inicio and CAIRO_AVAILABLE:
+                # Conectar callback para dibujar POZO INICIO
+                self.cairo_pozo_inicio.connect("draw", self._on_cairo_draw_pozo_inicio)
+                logger.info("✅ Cairo overlay POZO INICIO configurado - esquina inferior izquierda")
+            elif self.cairo_pozo_inicio:
+                logger.warning("⚠️ Cairo no disponible para POZO INICIO")
+            else:
+                logger.error("❌ No se encontró cairo_pozo_inicio en el pipeline")
+            
+            # === CAIRO OVERLAY POZO FIN - Esquina inferior derecha ===
+            self.cairo_pozo_fin = self.pipeline.get_by_name("cairo_pozo_fin")
+            if self.cairo_pozo_fin and CAIRO_AVAILABLE:
+                # Conectar callback para dibujar POZO FIN
+                self.cairo_pozo_fin.connect("draw", self._on_cairo_draw_pozo_fin)
+                logger.info("✅ Cairo overlay POZO FIN configurado - esquina inferior derecha")
+            elif self.cairo_pozo_fin:
+                logger.warning("⚠️ Cairo no disponible para POZO FIN")
+            else:
+                logger.error("❌ No se encontró cairo_pozo_fin en el pipeline")
+
                 
         except Exception as e:
             logger.error(f"❌ Error configurando overlays nativos: {e}")
     
-    def _on_cairo_draw(self, element, context, timestamp, duration, user_data=None):
+    def _on_cairo_draw_datetime(self, element, context, timestamp, duration, user_data=None):
         """Callback para dibujar fecha/hora con fondo naranja transparente usando Cairo"""
         if not CAIRO_AVAILABLE:
             return False
@@ -155,10 +185,13 @@ class VideoWidget(QFrame):
             text_width = text_extents.width
             text_height = text_extents.height
             
-            # Calcular posición (más a la derecha y más abajo)
+            # SISTEMA SIMÉTRICO: Box fijo izquierda, crece hacia la derecha
             padding = config['padding']
-            x = padding + 80  # Desplazar 80 píxeles más a la derecha
-            y = padding + text_height + 40  # Desplazar 40 píxeles más abajo
+            DISTANCIA_FIJA_BORDE = 150  # 150px desde borde izquierdo
+            
+            box_left = DISTANCIA_FIJA_BORDE  # Inicio fijo del box
+            x = box_left + padding  # Posición del texto (dentro del box)
+            y = padding + text_height + 40  # Altura estándar
             
             # Dimensiones del fondo
             bg_width = text_width + (padding * 2)
@@ -168,13 +201,13 @@ class VideoWidget(QFrame):
             bg_color = config['bg_color']
             context.set_source_rgba(bg_color[0], bg_color[1], bg_color[2], bg_color[3])
             
-            # Rectángulo con esquinas redondeadas
+            # Rectángulo con esquinas redondeadas - FECHA crece hacia DERECHA
             radius = config['border_radius']
             context.new_path()
-            context.arc(x - padding + radius, y - text_height - padding/2 + radius, radius, 3.14159, 3*3.14159/2)
-            context.arc(x - padding + bg_width - radius, y - text_height - padding/2 + radius, radius, 3*3.14159/2, 0)
-            context.arc(x - padding + bg_width - radius, y - padding/2 + text_height - radius, radius, 0, 3.14159/2)
-            context.arc(x - padding + radius, y - padding/2 + text_height - radius, radius, 3.14159/2, 3.14159)
+            context.arc(box_left + radius, y - text_height - padding/2 + radius, radius, 3.14159, 3*3.14159/2)
+            context.arc(box_left + bg_width - radius, y - text_height - padding/2 + radius, radius, 3*3.14159/2, 0)
+            context.arc(box_left + bg_width - radius, y - padding/2 + text_height - radius, radius, 0, 3.14159/2)
+            context.arc(box_left + radius, y - padding/2 + text_height - radius, radius, 3.14159/2, 3.14159)
             context.close_path()
             context.fill()
             
@@ -190,39 +223,286 @@ class VideoWidget(QFrame):
             logger.error(f"❌ Error en Cairo overlay: {e}")
             return False
     
+    def _on_cairo_draw_ref_tramo(self, element, context, timestamp, duration, user_data=None):
+        """Callback para dibujar REF. TRAMO con fondo naranja transparente usando Cairo"""
+        if not CAIRO_AVAILABLE or not self.ref_tramo_text:
+            return False
+            
+        try:
+            config = CAIRO_REF_TRAMO_CONFIG
+            
+            # Usar el texto almacenado de REF. TRAMO
+            ref_tramo_text = self.ref_tramo_text
+            
+            # Configurar fuente
+            context.select_font_face(
+                config['font_family'], 
+                cairo.FONT_SLANT_NORMAL, 
+                cairo.FONT_WEIGHT_BOLD if config['font_weight'] == 'bold' else cairo.FONT_WEIGHT_NORMAL
+            )
+            context.set_font_size(config['font_size'])
+            
+            # Obtener dimensiones del texto
+            text_extents = context.text_extents(ref_tramo_text)
+            text_width = text_extents.width
+            text_height = text_extents.height
+            
+            # Obtener dimensiones reales del video desde el contexto de Cairo
+            surface = context.get_target()
+            video_width = surface.get_width()
+            video_height = surface.get_height()
+            
+            # SISTEMA SIMÉTRICO: Box fijo derecha, crece hacia la izquierda
+            padding = config['padding']
+            DISTANCIA_FIJA_BORDE = 150  # 150px desde borde derecho (simétrico)
+            
+            # Dimensiones del fondo
+            bg_width = text_width + (padding * 2)
+            bg_height = text_height + (padding * 1.5)
+            
+            # Posición: box fijo desde borde derecho, crece hacia izquierda
+            box_right = video_width - DISTANCIA_FIJA_BORDE  # Final fijo del box (1130px)
+            box_left = box_right - bg_width  # Inicio variable del box (crece hacia izquierda)
+            x = box_left + padding  # Posición del texto (dentro del box)
+            y = padding + text_height + 40  # Misma altura que datetime
+            
+            # === DIBUJAR FONDO NARANJA TRANSPARENTE ===
+            bg_color = config['bg_color']
+            context.set_source_rgba(bg_color[0], bg_color[1], bg_color[2], bg_color[3])
+            
+            # Rectángulo con esquinas redondeadas - TRAMO crece hacia IZQUIERDA
+            radius = config['border_radius']
+            context.new_path()
+            context.arc(box_left + radius, y - text_height - padding/2 + radius, radius, 3.14159, 3*3.14159/2)
+            context.arc(box_right - radius, y - text_height - padding/2 + radius, radius, 3*3.14159/2, 0)
+            context.arc(box_right - radius, y - padding/2 + text_height - radius, radius, 0, 3.14159/2)
+            context.arc(box_left + radius, y - padding/2 + text_height - radius, radius, 3.14159/2, 3.14159)
+            context.close_path()
+            context.fill()
+            
+            # === DIBUJAR TEXTO BLANCO ===
+            text_color = config['text_color']
+            context.set_source_rgba(text_color[0], text_color[1], text_color[2], text_color[3])
+            context.move_to(x, y)
+            context.show_text(ref_tramo_text)
+            
+            return True
+            
+        except Exception as e:
+            logger.error(f"❌ Error en Cairo overlay REF. TRAMO: {e}")
+            return False
+    
+    def update_ref_tramo(self, ref_tramo):
+        """Actualizar texto de REF. TRAMO"""
+        self.ref_tramo_text = ref_tramo if ref_tramo else ""
+        logger.info(f"✅ REF. TRAMO actualizado: '{self.ref_tramo_text}'")
+    
+    def _on_cairo_draw_grid(self, element, context, timestamp, duration, user_data=None):
+        """Callback para dibujar malla/grilla de líneas blancas sobre el video"""
+        if not CAIRO_AVAILABLE:
+            return False
+            
+        try:
+            config = CAIRO_GRID_CONFIG
+            
+            # Verificar si la malla está habilitada
+            if not config.get('enabled', True):
+                return False
+            
+            # Obtener dimensiones reales del video desde el contexto de Cairo
+            surface = context.get_target()
+            video_width = surface.get_width()
+            video_height = surface.get_height()
+            
+            # Configurar estilo de líneas
+            line_color = config['line_color']
+            context.set_source_rgba(line_color[0], line_color[1], line_color[2], line_color[3])
+            context.set_line_width(config['line_width'])
+            
+            # Obtener configuración de espaciado
+            spacing_x = config['grid_spacing_x']  # 80px entre líneas verticales
+            spacing_y = config['grid_spacing_y']  # 60px entre líneas horizontales
+            offset_x = config['start_offset_x']   # 40px desde borde izquierdo
+            offset_y = config['start_offset_y']   # 30px desde borde superior
+            
+            # === DIBUJAR LÍNEAS VERTICALES PARALELAS ===
+            x = offset_x
+            while x < video_width:
+                context.move_to(x, 0)                    # Desde arriba
+                context.line_to(x, video_height)        # Hasta abajo
+                context.stroke()
+                x += spacing_x
+            
+            # === DIBUJAR LÍNEAS HORIZONTALES PARALELAS ===
+            y = offset_y
+            while y < video_height:
+                context.move_to(0, y)                    # Desde izquierda
+                context.line_to(video_width, y)         # Hasta derecha
+                context.stroke()
+                y += spacing_y
+            
+            return True
+            
+        except Exception as e:
+            logger.error(f"❌ Error en Cairo overlay MALLA: {e}")
+            return False
+    
+    def _on_cairo_draw_pozo_inicio(self, element, context, timestamp, duration, user_data=None):
+        """Callback para dibujar POZO INICIO con fondo naranja transparente usando Cairo - ESQUINA INFERIOR IZQUIERDA"""
+        if not CAIRO_AVAILABLE or not self.pozo_inicio_text:
+            return False
+            
+        try:
+            config = CAIRO_POZO_INICIO_CONFIG
+            
+            # Usar el texto almacenado de POZO INICIO
+            pozo_inicio_text = self.pozo_inicio_text
+            
+            # Configurar fuente
+            context.select_font_face(
+                config['font_family'], 
+                cairo.FONT_SLANT_NORMAL, 
+                cairo.FONT_WEIGHT_BOLD if config['font_weight'] == 'bold' else cairo.FONT_WEIGHT_NORMAL
+            )
+            context.set_font_size(config['font_size'])
+            
+            # Obtener dimensiones del texto
+            text_extents = context.text_extents(pozo_inicio_text)
+            text_width = text_extents.width
+            text_height = text_extents.height
+            
+            # Obtener dimensiones reales del video desde el contexto de Cairo
+            surface = context.get_target()
+            video_width = surface.get_width()
+            video_height = surface.get_height()
+            
+            # SISTEMA SIMÉTRICO INFERIOR: Box fijo izquierda, crece hacia la derecha
+            padding = config['padding']
+            DISTANCIA_FIJA_BORDE = 150  # 150px desde borde izquierdo (simétrico con fecha/hora)
+            DISTANCIA_FIJA_INFERIOR = 97  # 150px desde borde inferior (simétrico con overlays superiores)
+            
+            # Dimensiones del fondo
+            bg_width = text_width + (padding * 2)
+            bg_height = text_height + (padding * 1.5)
+            
+            # Posición: box fijo desde borde izquierdo, crece hacia derecha
+            box_left = DISTANCIA_FIJA_BORDE  # Inicio fijo del box
+            x = box_left + padding  # Posición del texto (dentro del box)
+            y = video_height - DISTANCIA_FIJA_INFERIOR + text_height  # Posición vertical desde abajo
+            
+            # === DIBUJAR FONDO NARANJA TRANSPARENTE ===
+            bg_color = config['bg_color']
+            context.set_source_rgba(bg_color[0], bg_color[1], bg_color[2], bg_color[3])
+            
+            # Rectángulo con esquinas redondeadas - POZO INICIO crece hacia DERECHA
+            radius = config['border_radius']
+            context.new_path()
+            context.arc(box_left + radius, y - text_height - padding/2 + radius, radius, 3.14159, 3*3.14159/2)
+            context.arc(box_left + bg_width - radius, y - text_height - padding/2 + radius, radius, 3*3.14159/2, 0)
+            context.arc(box_left + bg_width - radius, y - padding/2 + text_height - radius, radius, 0, 3.14159/2)
+            context.arc(box_left + radius, y - padding/2 + text_height - radius, radius, 3.14159/2, 3.14159)
+            context.close_path()
+            context.fill()
+            
+            # === DIBUJAR TEXTO BLANCO ===
+            text_color = config['text_color']
+            context.set_source_rgba(text_color[0], text_color[1], text_color[2], text_color[3])
+            context.move_to(x, y)
+            context.show_text(pozo_inicio_text)
+            
+            return True
+            
+        except Exception as e:
+            logger.error(f"❌ Error en Cairo overlay POZO INICIO: {e}")
+            return False
+    
+    def _on_cairo_draw_pozo_fin(self, element, context, timestamp, duration, user_data=None):
+        """Callback para dibujar POZO FIN con fondo naranja transparente usando Cairo - ESQUINA INFERIOR DERECHA"""
+        if not CAIRO_AVAILABLE or not self.pozo_fin_text:
+            return False
+            
+        try:
+            config = CAIRO_POZO_FIN_CONFIG
+            
+            # Usar el texto almacenado de POZO FIN
+            pozo_fin_text = self.pozo_fin_text
+            
+            # Configurar fuente
+            context.select_font_face(
+                config['font_family'], 
+                cairo.FONT_SLANT_NORMAL, 
+                cairo.FONT_WEIGHT_BOLD if config['font_weight'] == 'bold' else cairo.FONT_WEIGHT_NORMAL
+            )
+            context.set_font_size(config['font_size'])
+            
+            # Obtener dimensiones del texto
+            text_extents = context.text_extents(pozo_fin_text)
+            text_width = text_extents.width
+            text_height = text_extents.height
+            
+            # Obtener dimensiones reales del video desde el contexto de Cairo
+            surface = context.get_target()
+            video_width = surface.get_width()
+            video_height = surface.get_height()
+            
+            # SISTEMA SIMÉTRICO INFERIOR: Box fijo derecha, crece hacia la izquierda
+            padding = config['padding']
+            DISTANCIA_FIJA_BORDE = 150  # 150px desde borde derecho (simétrico con REF. TRAMO)
+            DISTANCIA_FIJA_INFERIOR = 97  # 150px desde borde inferior (simétrico con overlays superiores)
+            
+            # Dimensiones del fondo
+            bg_width = text_width + (padding * 2)
+            bg_height = text_height + (padding * 1.5)
+            
+            # Posición: box fijo desde borde derecho, crece hacia izquierda
+            box_right = video_width - DISTANCIA_FIJA_BORDE  # Final fijo del box
+            box_left = box_right - bg_width  # Inicio variable del box (crece hacia izquierda)
+            x = box_left + padding  # Posición del texto (dentro del box)
+            y = video_height - DISTANCIA_FIJA_INFERIOR + text_height  # Posición vertical desde abajo
+            
+            # === DIBUJAR FONDO NARANJA TRANSPARENTE ===
+            bg_color = config['bg_color']
+            context.set_source_rgba(bg_color[0], bg_color[1], bg_color[2], bg_color[3])
+            
+            # Rectángulo con esquinas redondeadas - POZO FIN crece hacia IZQUIERDA
+            radius = config['border_radius']
+            context.new_path()
+            context.arc(box_left + radius, y - text_height - padding/2 + radius, radius, 3.14159, 3*3.14159/2)
+            context.arc(box_right - radius, y - text_height - padding/2 + radius, radius, 3*3.14159/2, 0)
+            context.arc(box_right - radius, y - padding/2 + text_height - radius, radius, 0, 3.14159/2)
+            context.arc(box_left + radius, y - padding/2 + text_height - radius, radius, 3.14159/2, 3.14159)
+            context.close_path()
+            context.fill()
+            
+            # === DIBUJAR TEXTO BLANCO ===
+            text_color = config['text_color']
+            context.set_source_rgba(text_color[0], text_color[1], text_color[2], text_color[3])
+            context.move_to(x, y)
+            context.show_text(pozo_fin_text)
+            
+            return True
+            
+        except Exception as e:
+            logger.error(f"❌ Error en Cairo overlay POZO FIN: {e}")
+            return False
+    
+    def update_pozo_inicio(self, pozo_inicio):
+        """Actualizar texto de POZO INICIO"""
+        self.pozo_inicio_text = pozo_inicio if pozo_inicio else ""
+        logger.info(f"✅ POZO INICIO actualizado: '{self.pozo_inicio_text}'")
+    
+    def update_pozo_fin(self, pozo_fin):
+        """Actualizar texto de POZO FIN"""
+        self.pozo_fin_text = pozo_fin if pozo_fin else ""
+        logger.info(f"✅ POZO FIN actualizado: '{self.pozo_fin_text}'")
+    
     def resizeEvent(self, event):
         """Manejar redimensionamiento del widget"""
         super().resizeEvent(event)
         # Los overlays nativos se redimensionan automáticamente con el video
         logger.debug(f"Widget redimensionado a: {event.size().width()}x{event.size().height()}")
     
-    def update_pozo_overlays(self, pozo_desde, pozo_hasta):
-        """Actualizar texto de los overlays nativos de pozos"""
-        try:
-            # Actualizar POZO DESDE (overlay nativo)
-            if self.textoverlay_desde:
-                if pozo_desde:
-                    texto_desde = f"DESDE: {pozo_desde}"
-                    self.textoverlay_desde.set_property('text', texto_desde)
-                    logger.debug(f"📍 Overlay DESDE actualizado: {texto_desde}")
-                else:
-                    self.textoverlay_desde.set_property('text', '')
-                    logger.debug("📍 Overlay DESDE ocultado")
-            
-            # Actualizar POZO HASTA (overlay nativo)
-            if self.textoverlay_hasta:
-                if pozo_hasta:
-                    texto_hasta = f"HASTA: {pozo_hasta}"
-                    self.textoverlay_hasta.set_property('text', texto_hasta)
-                    logger.debug(f"📍 Overlay HASTA actualizado: {texto_hasta}")
-                else:
-                    self.textoverlay_hasta.set_property('text', '')
-                    logger.debug("📍 Overlay HASTA ocultado")
-            
-            logger.info(f"✅ Overlays nativos actualizados: DESDE={pozo_desde}, HASTA={pozo_hasta}")
-            
-        except Exception as e:
-            logger.error(f"❌ Error actualizando overlays nativos: {e}")
+
     
     def start_stream(self, rtsp_url):
         """Iniciar stream con pipeline optimizado y overlays nativos"""

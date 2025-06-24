@@ -161,7 +161,7 @@ class MainWindow(QMainWindow):
         """)
         
         # === TÍTULO DEL PANEL ===
-        title_label = QLabel("🔧 CONTROLES")
+        title_label = QLabel("CONTROLES")
         title_label.setObjectName("rightPanelTitle")
         title_label.setStyleSheet("""
         QLabel#rightPanelTitle {
@@ -175,21 +175,10 @@ class MainWindow(QMainWindow):
         """)
         title_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         
-        # === DESCRIPCIÓN DEL BOTÓN ===
-        desc_label = QLabel("Nueva\nInspección")
-        desc_label.setObjectName("buttonDescription")
-        desc_label.setStyleSheet("""
-        QLabel#buttonDescription {
-            color: rgba(255, 255, 255, 180);
-            font-size: 12px;
-            font-family: Arial, sans-serif;
-            text-align: center;
-            padding: 5px;
-        }
-        """)
-        desc_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        # === DESCRIPCIÓN DEL BOTÓN (REMOVIDA) ===
+        # desc_label removido según solicitud del usuario
         
-        # === BOTONES DE CONTROL (PAUSAR Y DETENER) ===
+        # === BOTONES DE CONTROL (PAUSAR, FOTO Y DETENER) ===
         control_buttons_layout = QHBoxLayout()
         control_buttons_layout.setSpacing(10)
         
@@ -199,6 +188,17 @@ class MainWindow(QMainWindow):
         self.pause_button.setMinimumSize(45, 45)
         self.pause_button.setMaximumSize(45, 45)
         self.pause_button.clicked.connect(self.on_pause_clicked)
+        
+        # Botón CAPTURA FOTO (estilo móvil circular)
+
+        
+        # Botón CAPTURA (aro + círculo blanco)
+        self.capture_button = QPushButton("")
+        self.capture_button.setObjectName("captureButton")
+        self.capture_button.setMinimumSize(50, 50)  # Más grande que pausar/detener
+        self.capture_button.setMaximumSize(50, 50)
+        self.capture_button.setToolTip("Capturar foto")
+        self.capture_button.clicked.connect(self.on_capture_clicked)
         
         # Botón DETENER
         self.stop_button = QPushButton("⏹️")
@@ -236,47 +236,103 @@ class MainWindow(QMainWindow):
         self.pause_button.setStyleSheet(control_button_style)
         self.stop_button.setStyleSheet(control_button_style)
         
+        # Estilo para botón de captura (círculo blanco con efectos premium)
+        capture_button_style = """
+        QPushButton#captureButton {
+            background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                stop:0 #ffffff, stop:0.5 #f8f8f8, stop:1 #f0f0f0);
+            border: 1px solid rgba(200, 200, 200, 0.3);
+            border-radius: 25px;
+            min-width: 50px;
+            max-width: 50px;
+            min-height: 50px;
+            max-height: 50px;
+            box-shadow: 0px 2px 4px rgba(0, 0, 0, 0.1);
+        }
+        QPushButton#captureButton:hover {
+            background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                stop:0 #ffffff, stop:0.3 #FFA726, stop:0.7 #FF9800, stop:1 #f8f8f8);
+            border: 1px solid rgba(255, 167, 38, 0.5);
+            transform: scale(1.08);
+            box-shadow: 0px 4px 8px rgba(255, 167, 38, 0.3);
+        }
+        QPushButton#captureButton:pressed {
+            background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                stop:0 #FF9800, stop:0.5 #FF5722, stop:1 #E64A19);
+            border: 1px solid rgba(255, 87, 34, 0.8);
+            transform: scale(0.92);
+            box-shadow: 0px 1px 2px rgba(0, 0, 0, 0.2);
+        }
+        """
+        
+        self.capture_button.setStyleSheet(capture_button_style)
+
+        
         # Agregar botones al layout horizontal
         control_buttons_layout.addWidget(self.pause_button)
+        control_buttons_layout.addWidget(self.capture_button)
         control_buttons_layout.addWidget(self.stop_button)
         
-        # === ETIQUETAS DE LOS BOTONES DE CONTROL ===
-        control_labels_layout = QHBoxLayout()
-        control_labels_layout.setSpacing(10)
+        # === ETIQUETAS DE LOS BOTONES DE CONTROL (REMOVIDAS) ===
+        # Etiquetas removidas según solicitud del usuario - los emojis son suficientes
         
-        pause_label = QLabel("PAUSAR")
-        pause_label.setStyleSheet("""
-        QLabel {
+        # === BOTÓN DE CONFIGURACIONES (ENGRANAJE) ===
+        self.settings_button = QPushButton("⚙️")
+        self.settings_button.setObjectName("settingsButton")
+        self.settings_button.setMinimumSize(50, 50)
+        self.settings_button.setMaximumSize(50, 50)
+        self.settings_button.clicked.connect(self.on_settings_clicked)
+        
+        # Estilo del botón engranaje
+        self.settings_button.setStyleSheet("""
+        QPushButton#settingsButton {
+            background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                stop:0 rgba(80, 80, 80, 200), 
+                stop:1 rgba(60, 60, 60, 200));
+            color: white;
+            border: 2px solid rgba(255, 167, 38, 100);
+            border-radius: 25px;
+            font-size: 20px;
+            font-weight: bold;
+        }
+        QPushButton#settingsButton:hover {
+            background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                stop:0 rgba(255, 167, 38, 220), 
+                stop:1 rgba(255, 152, 0, 220));
+            border: 2px solid rgba(255, 255, 255, 150);
+            transform: scale(1.1);
+        }
+        QPushButton#settingsButton:pressed {
+            background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                stop:0 rgba(255, 152, 0, 180), 
+                stop:1 rgba(245, 124, 0, 180));
+            border: 2px solid rgba(255, 255, 255, 200);
+        }
+        """)
+        
+        # Etiqueta para el botón de configuraciones
+        settings_label = QLabel("CONFIGURACIONES")
+        settings_label.setObjectName("settingsLabel")
+        settings_label.setStyleSheet("""
+        QLabel#settingsLabel {
             color: rgba(255, 255, 255, 160);
             font-size: 10px;
             font-family: Arial, sans-serif;
             text-align: center;
+            padding: 5px;
         }
         """)
-        pause_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        
-        stop_label = QLabel("DETENER")
-        stop_label.setStyleSheet("""
-        QLabel {
-            color: rgba(255, 255, 255, 160);
-            font-size: 10px;
-            font-family: Arial, sans-serif;
-            text-align: center;
-        }
-        """)
-        stop_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        
-        control_labels_layout.addWidget(pause_label)
-        control_labels_layout.addWidget(stop_label)
+        settings_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         
         # Agregar elementos al layout
         layout.addWidget(title_label)
         layout.addWidget(self.plus_button, alignment=Qt.AlignmentFlag.AlignCenter)
-        layout.addWidget(desc_label)
         layout.addSpacing(20)  # Espacio entre secciones
         layout.addLayout(control_buttons_layout)
-        layout.addLayout(control_labels_layout)
-        layout.addStretch()  # Empujar todo hacia arriba
+        layout.addStretch()  # Empujar configuraciones hacia abajo
+        layout.addWidget(self.settings_button, alignment=Qt.AlignmentFlag.AlignCenter)
+        layout.addWidget(settings_label)
+        layout.addSpacing(20)  # Espacio final para que no esté completamente al fondo
         
         # Estilo del panel
         panel.setStyleSheet("""
@@ -405,12 +461,15 @@ class MainWindow(QMainWindow):
         logger.info("Datos de inspección recibidos desde el formulario")
         logger.debug(f"Datos completos: {data}")
         
-        # Actualizar overlays en el video con los datos de pozos
+        # Actualizar overlays en el video
+        ref_tramo = data.get('ref_tramo', '')
         pozo_desde = data.get('pozo_desde', '')
         pozo_hasta = data.get('pozo_hasta', '')
         
         if self.video_widget:
-            self.video_widget.update_pozo_overlays(pozo_desde, pozo_hasta)
+            self.video_widget.update_ref_tramo(ref_tramo)
+            self.video_widget.update_pozo_inicio(pozo_desde)
+            self.video_widget.update_pozo_fin(pozo_hasta)
         
         # Mostrar resumen simplificado
         summary = f"""
@@ -430,7 +489,9 @@ class MainWindow(QMainWindow):
 🔗 Ref. Tramo: {data['ref_tramo']}
 📝 Info Adicional: {data['inf_adicional'][:50]}{'...' if len(data['inf_adicional']) > 50 else ''}
 
-🎬 Los overlays de pozos ahora se muestran en el video.
+🎬 Los overlays ahora se muestran en el video:
+   📍 Superior: FECHA/HORA y REF. TRAMO
+   📍 Inferior: POZO INICIO y POZO FIN
         """.strip()
         
         # Mostrar resumen
@@ -445,6 +506,11 @@ class MainWindow(QMainWindow):
         else:
             logger.warning("No se puede pausar - video widget no disponible o función no implementada")
             QMessageBox.information(self, "Pausar Stream", "Función de pausa en desarrollo")
+
+    def on_capture_clicked(self):
+        """Manejar clic del botón CAPTURA (aro + círculo)"""
+        logger.info("📷 Botón CAPTURA presionado")
+        QMessageBox.information(self, "📷 Captura", "Función de captura en desarrollo")
     
     def on_stop_clicked(self):
         """Manejar clic del botón DETENER"""
@@ -456,6 +522,59 @@ class MainWindow(QMainWindow):
             self.disconnect_stream()
         else:
             logger.warning("No se puede detener - video widget no disponible")
+    
+    def on_settings_clicked(self):
+        """Manejar clic en botón de configuraciones"""
+        logger.info("⚙️ Botón CONFIGURACIONES presionado")
+        
+        # Mostrar panel de configuraciones temporal
+        msg = QMessageBox(self)
+        msg.setWindowTitle("⚙️ Configuraciones del Sistema")
+        msg.setText("🎛️ Panel de Configuraciones")
+        msg.setInformativeText(
+            "Próximamente disponible:\n\n"
+            "⏰ Formato de fecha/hora\n"
+            "🎨 Colores y transparencias\n"
+            "📐 Tamaño de textos\n"
+            "🎯 Posición de overlays\n"
+            "📊 Configuración de métricas\n"
+            "🎥 Resolución de video\n"
+            "🔧 Configuración de cámara\n"
+            "💾 Opciones de grabación"
+        )
+        msg.setIcon(QMessageBox.Icon.Information)
+        msg.setStandardButtons(QMessageBox.StandardButton.Ok)
+        
+        # Estilo personalizado para el mensaje
+        msg.setStyleSheet("""
+        QMessageBox {
+            background-color: #2d2d2d;
+            color: white;
+            font-family: Arial, sans-serif;
+        }
+        QMessageBox QLabel {
+            color: white;
+            font-size: 12px;
+        }
+        QMessageBox QPushButton {
+            background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                stop:0 rgba(255, 167, 38, 220), 
+                stop:1 rgba(255, 152, 0, 220));
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            font-weight: bold;
+            font-size: 12px;
+        }
+        QPushButton:hover {
+            background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                stop:0 rgba(255, 152, 0, 250), 
+                stop:1 rgba(245, 124, 0, 250));
+        }
+        """)
+        
+        msg.exec()
     
     def start_stats_monitoring(self):
         """Iniciar monitoreo de estadísticas en tiempo real"""
