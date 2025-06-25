@@ -120,10 +120,31 @@ class ButtonHandlers:
             logger.warning("No se puede detener - video widget no disponible")
     
     def handle_annotate_button(self):
-        """Manejar clic del botón ANOTAR - abre formulario de inspección como el botón +"""
-        logger.info("📝 Botón ANOTAR presionado - Abriendo formulario de inspección")
-        # Reutilizar la misma funcionalidad del botón +
-        self.handle_plus_button()
+        """Manejar clic del botón ANOTAR - iniciar anotación dinámica en el video"""
+        logger.info("📝 Botón ANOTAR presionado - Iniciando anotación dinámica")
+        
+        if self.main_window.video_widget:
+            if self.main_window.video_widget.is_annotation_active():
+                # Si ya está activo, detenerlo
+                self.main_window.video_widget.stop_annotation()
+                QMessageBox.information(self.main_window, "📝 Anotación", 
+                                       "Modo de anotación detenido.\n\n"
+                                       "La anotación ha sido guardada.")
+            else:
+                # Iniciar modo de anotación
+                self.main_window.video_widget.start_annotation()
+                QMessageBox.information(self.main_window, "📝 Anotación Activa", 
+                                       "¡Modo de anotación iniciado!\n\n"
+                                       "• Escribe directamente en el video\n"
+                                       "• ENTER: Guardar y salir\n"
+                                       "• ESC: Cancelar\n"
+                                       "• BACKSPACE: Borrar\n\n"
+                                       "El texto aparecerá debajo de la línea roja.")
+        else:
+            logger.warning("Video widget no disponible para anotaciones")
+            QMessageBox.warning(self.main_window, "📝 Error", 
+                               "No se puede iniciar anotación.\n"
+                               "Video no disponible.")
     
     def handle_reset_distance_button(self):
         """Manejar clic del botón RESETEAR DISTANCIA"""
@@ -137,13 +158,27 @@ class ButtonHandlers:
     def handle_clear_screen_button(self):
         """Manejar clic del botón LIMPIAR PANTALLA"""
         logger.info("🧹 Botón LIMPIAR PANTALLA presionado")
-        # Por el momento solo mostrar mensaje - funcionalidad a implementar
-        QMessageBox.information(self.main_window, "🧹 Limpiar Pantalla", 
-                               "Función de limpiar pantalla en desarrollo.\n\n"
-                               "Esta función permitirá:\n"
-                               "• Limpiar overlays temporales\n"
-                               "• Resetear elementos visuales\n"
-                               "• Refrescar la vista del video")
+        
+        if self.main_window.video_widget:
+            # Limpiar anotaciones activas
+            if self.main_window.video_widget.is_annotation_active():
+                self.main_window.video_widget.stop_annotation()
+                logger.info("✅ Anotación limpiada")
+            
+            # Aquí se pueden agregar más limpiezas en el futuro
+            # Por ejemplo: resetear distancia, limpiar otros overlays temporales, etc.
+            
+            QMessageBox.information(self.main_window, "🧹 Pantalla Limpiada", 
+                                   "✅ Pantalla limpiada exitosamente\n\n"
+                                   "Se han eliminado:\n"
+                                   "• Anotaciones activas\n"
+                                   "• Elementos temporales\n\n"
+                                   "El video continúa funcionando normalmente.")
+        else:
+            logger.warning("Video widget no disponible para limpiar")
+            QMessageBox.warning(self.main_window, "🧹 Error", 
+                               "No se puede limpiar la pantalla.\n"
+                               "Video no disponible.")
     
     def handle_settings_button(self):
         """Manejar clic en botón de configuraciones"""

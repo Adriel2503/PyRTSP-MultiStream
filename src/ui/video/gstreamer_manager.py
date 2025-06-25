@@ -96,7 +96,8 @@ class GStreamerManager:
                 'cairo_ref_tramo': self.pipeline.get_by_name("cairo_ref_tramo"),
                 'cairo_pozo_inicio': self.pipeline.get_by_name("cairo_pozo_inicio"),
                 'cairo_distancia': self.pipeline.get_by_name("cairo_distancia"),
-                'cairo_pozo_fin': self.pipeline.get_by_name("cairo_pozo_fin")
+                'cairo_pozo_fin': self.pipeline.get_by_name("cairo_pozo_fin"),
+                'cairo_annotation': self.pipeline.get_by_name("cairo_annotation")
             }
             
             # Configurar overlays en el manager

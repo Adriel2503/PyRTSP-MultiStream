@@ -110,6 +110,59 @@ class VideoWidget(QFrame):
         """Habilitar elementos dependientes del formulario"""
         self.overlay_manager.enable_form_elements()
     
+    # === MÉTODOS PARA ANOTACIONES ===
+    
+    def start_annotation(self):
+        """Iniciar modo de anotación"""
+        self.overlay_manager.start_annotation()
+        # Activar captura de teclado
+        self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
+        self.setFocus()
+        logger.info("✅ Modo de anotación iniciado en video widget")
+        logger.debug(f"Focus policy: {self.focusPolicy()}, Has focus: {self.hasFocus()}")
+    
+    def stop_annotation(self):
+        """Detener modo de anotación"""
+        self.overlay_manager.stop_annotation()
+        logger.info("Modo de anotación detenido en video widget")
+    
+    def is_annotation_active(self):
+        """Verificar si la anotación está activa"""
+        return self.overlay_manager.is_annotation_active()
+    
+    def keyPressEvent(self, event):
+        """Manejar eventos de teclado para anotaciones"""
+        logger.debug(f"🔑 Tecla presionada: {event.key()}, texto: '{event.text()}', annotation_active: {self.is_annotation_active()}")
+        
+        if self.is_annotation_active():
+            # Manejar teclas especiales
+            if event.key() == Qt.Key.Key_Escape:
+                # ESC para salir del modo anotación
+                logger.info("ESC presionado - saliendo del modo anotación")
+                self.stop_annotation()
+                return
+            elif event.key() == Qt.Key.Key_Return or event.key() == Qt.Key.Key_Enter:
+                # ENTER para finalizar anotación
+                annotation_text = self.overlay_manager.get_annotation_text()
+                logger.info(f"ENTER presionado - Anotación finalizada: '{annotation_text}'")
+                self.stop_annotation()
+                return
+            elif event.key() == Qt.Key.Key_Backspace:
+                # BACKSPACE para borrar
+                logger.debug("BACKSPACE presionado - eliminando carácter")
+                self.overlay_manager.remove_annotation_character()
+                return
+            
+            # Manejar caracteres normales
+            text = event.text()
+            if text and text.isprintable():
+                logger.debug(f"Carácter agregado: '{text}'")
+                self.overlay_manager.add_annotation_character(text)
+                return
+        
+        # Pasar evento al padre si no es para anotación
+        super().keyPressEvent(event)
+    
     def resizeEvent(self, event):
         """Manejar redimensionamiento del widget"""
         super().resizeEvent(event)

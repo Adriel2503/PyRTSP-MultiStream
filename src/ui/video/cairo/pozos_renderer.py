@@ -39,7 +39,7 @@ class PozosRenderer:
         try:
             return self._draw_pozo_base(
                 context, pozo_inicio_text, self.pozo_inicio_config, 
-                is_left_aligned=True, is_bottom=True
+                is_left_aligned=True, is_bottom=True, overlay_config=overlay_config
             )
         except Exception as e:
             logger.error(f"❌ Error en Pozo Inicio renderer: {e}")
@@ -56,7 +56,7 @@ class PozosRenderer:
         try:
             return self._draw_pozo_base(
                 context, pozo_fin_text, self.pozo_fin_config,
-                is_left_aligned=False, is_bottom=True
+                is_left_aligned=False, is_bottom=True, overlay_config=overlay_config
             )
         except Exception as e:
             logger.error(f"❌ Error en Pozo Fin renderer: {e}")
@@ -73,21 +73,24 @@ class PozosRenderer:
         try:
             return self._draw_pozo_base(
                 context, distancia_text, self.distancia_config,
-                is_left_aligned=False, is_bottom=True, has_vertical_offset=True
+                is_left_aligned=False, is_bottom=True, has_vertical_offset=True, overlay_config=overlay_config
             )
         except Exception as e:
             logger.error(f"❌ Error en Distancia renderer: {e}")
             return False
     
-    def _draw_pozo_base(self, context, text, config, is_left_aligned=True, is_bottom=False, has_vertical_offset=False):
+    def _draw_pozo_base(self, context, text, config, is_left_aligned=True, is_bottom=False, has_vertical_offset=False, overlay_config=None):
         """Método base para dibujar pozos con configuración flexible"""
+        if overlay_config is None:
+            overlay_config = {}
+            
         # Configurar fuente
         context.select_font_face(
             config['font_family'], 
             cairo.FONT_SLANT_NORMAL, 
             cairo.FONT_WEIGHT_BOLD if config['font_weight'] == 'bold' else cairo.FONT_WEIGHT_NORMAL
         )
-        context.set_font_size(config['font_size'])
+        context.set_font_size(overlay_config.get('font_size', config['font_size']))
         
         # Obtener dimensiones del texto
         text_extents = context.text_extents(text)
@@ -129,8 +132,17 @@ class PozosRenderer:
         else:
             y = padding + text_height + 40  # Posición superior
         
-        # === DIBUJAR FONDO NARANJA TRANSPARENTE ===
-        bg_color = config['bg_color']
+        # === DIBUJAR FONDO DINÁMICO TRANSPARENTE ===
+        # Usar color de fondo de la configuración global si está disponible
+        if 'bg_color' in overlay_config and overlay_config['bg_color']:
+            # Convertir QColor a RGBA normalizado
+            qcolor = overlay_config['bg_color']
+            bg_opacity = overlay_config.get('bg_opacity', 0.6)
+            bg_color = (qcolor.red()/255.0, qcolor.green()/255.0, qcolor.blue()/255.0, bg_opacity)
+        else:
+            # Usar color por defecto
+            bg_color = config['bg_color']
+        
         context.set_source_rgba(bg_color[0], bg_color[1], bg_color[2], bg_color[3])
         
         # Rectángulo con esquinas redondeadas
@@ -141,8 +153,14 @@ class PozosRenderer:
         )
         context.fill()
         
-        # === DIBUJAR TEXTO BLANCO ===
-        text_color = config['text_color']
+        # === DIBUJAR TEXTO DINÁMICO ===
+        # Usar color de texto de la configuración global si está disponible
+        if 'text_color' in overlay_config and overlay_config['text_color']:
+            qcolor = overlay_config['text_color']
+            text_color = (qcolor.red()/255.0, qcolor.green()/255.0, qcolor.blue()/255.0, 1.0)
+        else:
+            text_color = config['text_color']
+        
         context.set_source_rgba(text_color[0], text_color[1], text_color[2], text_color[3])
         context.move_to(x, y)
         context.show_text(text)

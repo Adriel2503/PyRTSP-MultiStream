@@ -48,16 +48,16 @@ class StyleManager:
         return """
         QSlider::groove:horizontal {
             background: #555555;
-            height: 8px;
-            border-radius: 4px;
+            height: 4px;
+            border-radius: 2px;
         }
         QSlider::handle:horizontal {
             background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
                 stop:0 #FFA726, stop:1 #FF9800);
             border: 2px solid #FF9800;
-            width: 18px;
-            margin: -5px 0;
-            border-radius: 9px;
+            width: 16px;
+            margin: -6px 0;
+            border-radius: 8px;
         }
         QSlider::handle:horizontal:hover {
             background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
@@ -66,7 +66,7 @@ class StyleManager:
         QSlider::sub-page:horizontal {
             background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
                 stop:0 #FFA726, stop:1 #FF9800);
-            border-radius: 4px;
+            border-radius: 2px;
         }
         """
     

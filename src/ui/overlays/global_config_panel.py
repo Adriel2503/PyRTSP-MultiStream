@@ -22,7 +22,7 @@ class GlobalConfigPanel(QGroupBox):
     """Panel de configuración global"""
     
     def __init__(self):
-        super().__init__("🌐 Configuración Global")
+        super().__init__("Configuración Global")
         
         # Timer para actualización de fecha/hora
         self.datetime_timer = QTimer()
@@ -112,26 +112,15 @@ class GlobalConfigPanel(QGroupBox):
         # Color de Fondo
         layout.addWidget(QLabel("Color de Fondo"), 5, 0)
         self.bg_color_button = ColorButton()
-        self.bg_color_button.set_color(QColor(26, 26, 26))  # #1a1a1a
-        self.bg_color_hex = QLabel("#1a1a1a")
-        self.bg_color_hex.setStyleSheet(StyleManager.get_color_hex_style("white", "#1a1a1a"))
-        self.bg_color_button.color_changed.connect(
-            lambda c: self.bg_color_hex.setText(c.name().upper())
-        )
+        # Usar color naranja por defecto de constants.py (1.0, 0.65, 0.15) = RGB(255, 166, 38)
+        self.bg_color_button.set_color(QColor(255, 166, 38))  # Naranja por defecto
         layout.addWidget(self.bg_color_button, 5, 1)
-        layout.addWidget(self.bg_color_hex, 5, 2)
         
         # Color de Texto
         layout.addWidget(QLabel("Color de Texto"), 6, 0)
         self.text_color_button = ColorButton()
         self.text_color_button.set_color(QColor(255, 255, 255))  # #ffffff
-        self.text_color_hex = QLabel("#ffffff")
-        self.text_color_hex.setStyleSheet(StyleManager.get_color_hex_style("black", "white"))
-        self.text_color_button.color_changed.connect(
-            lambda c: self.text_color_hex.setText(c.name().upper())
-        )
         layout.addWidget(self.text_color_button, 6, 1)
-        layout.addWidget(self.text_color_hex, 6, 2)
         
         # Color de Cuadrícula - ✅ USAR COLOR ACTUAL DE CONSTANTS.PY
         layout.addWidget(QLabel("Color de Cuadrícula"), 7, 0)
@@ -145,13 +134,7 @@ class GlobalConfigPanel(QGroupBox):
             int(grid_rgba[3] * 255)   # A
         )
         self.grid_color_button.set_color(current_grid_color)
-        self.grid_color_hex = QLabel(current_grid_color.name().upper())
-        self.grid_color_hex.setStyleSheet(StyleManager.get_color_hex_style("white", current_grid_color.name()))
-        self.grid_color_button.color_changed.connect(
-            lambda c: self.grid_color_hex.setText(c.name().upper())
-        )
         layout.addWidget(self.grid_color_button, 7, 1)
-        layout.addWidget(self.grid_color_hex, 7, 2)
     
     def setup_styles(self):
         """Aplicar estilos al panel"""

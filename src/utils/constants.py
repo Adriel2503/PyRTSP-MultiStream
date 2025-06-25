@@ -11,7 +11,7 @@ APP_TITLE = "🚀 Cámara IP - GStreamer + PyQt6 (D3D11 Overlay)"
 # === CONFIGURACIÓN DE GSTREAMER ===
 DEFAULT_RTSP_URL = "rtsp://admin:Prototipo@192.168.18.5:554/Streaming/Channels/101"
 
-# Pipeline GStreamer optimizado CON OVERLAYS NATIVOS (6 overlays: malla + 5 textos)
+# Pipeline GStreamer optimizado CON OVERLAYS NATIVOS (7 overlays: malla + 5 textos + anotaciones)
 GSTREAMER_PIPELINE_TEMPLATE = """
 rtspsrc location={url} protocols=tcp latency=0 name=rtspsrc
 ! rtph264depay name=depay
@@ -23,6 +23,7 @@ rtspsrc location={url} protocols=tcp latency=0 name=rtspsrc
 ! cairooverlay name=cairo_pozo_inicio
 ! cairooverlay name=cairo_distancia
 ! cairooverlay name=cairo_pozo_fin
+! cairooverlay name=cairo_annotation
 ! d3d11videosink name=videosink
 """
 

@@ -36,7 +36,7 @@ class OverlayConfigDialog(QDialog):
     
     def setup_ui(self):
         """Configurar interfaz del diálogo"""
-        self.setWindowTitle("⚙️ Configuración de Overlays")
+        self.setWindowTitle("Configuración de Overlays")
         self.setModal(True)
         self.setFixedSize(520, 750)
         

@@ -25,7 +25,7 @@ class DateTimeRenderer:
         logger.debug("DateTimeRenderer inicializado")
     
     def draw(self, context, overlay_config):
-        """Dibujar fecha/hora con fondo naranja transparente"""
+        """Dibujar fecha/hora con fondo dinámico transparente"""
         if not CAIRO_AVAILABLE:
             return False
             
@@ -44,7 +44,7 @@ class DateTimeRenderer:
                 cairo.FONT_SLANT_NORMAL, 
                 cairo.FONT_WEIGHT_BOLD if self.config['font_weight'] == 'bold' else cairo.FONT_WEIGHT_NORMAL
             )
-            context.set_font_size(self.config['font_size'])
+            context.set_font_size(overlay_config.get('font_size', self.config['font_size']))
             
             # Obtener dimensiones del texto
             text_extents = context.text_extents(datetime_text)
@@ -63,8 +63,17 @@ class DateTimeRenderer:
             bg_width = text_width + (padding * 2)
             bg_height = text_height + (padding * 1.5)
             
-            # === DIBUJAR FONDO NARANJA TRANSPARENTE ===
-            bg_color = self.config['bg_color']
+            # === DIBUJAR FONDO DINÁMICO TRANSPARENTE ===
+            # Usar color de fondo de la configuración global si está disponible
+            if 'bg_color' in overlay_config and overlay_config['bg_color']:
+                # Convertir QColor a RGBA normalizado
+                qcolor = overlay_config['bg_color']
+                bg_opacity = overlay_config.get('bg_opacity', 0.6)
+                bg_color = (qcolor.red()/255.0, qcolor.green()/255.0, qcolor.blue()/255.0, bg_opacity)
+            else:
+                # Usar color por defecto
+                bg_color = self.config['bg_color']
+            
             context.set_source_rgba(bg_color[0], bg_color[1], bg_color[2], bg_color[3])
             
             # Rectángulo con esquinas redondeadas - FECHA crece hacia DERECHA
@@ -72,8 +81,14 @@ class DateTimeRenderer:
             self._draw_rounded_rectangle(context, box_left, y - text_height - padding/2, bg_width, bg_height, radius)
             context.fill()
             
-            # === DIBUJAR TEXTO BLANCO ===
-            text_color = self.config['text_color']
+            # === DIBUJAR TEXTO DINÁMICO ===
+            # Usar color de texto de la configuración global si está disponible
+            if 'text_color' in overlay_config and overlay_config['text_color']:
+                qcolor = overlay_config['text_color']
+                text_color = (qcolor.red()/255.0, qcolor.green()/255.0, qcolor.blue()/255.0, 1.0)
+            else:
+                text_color = self.config['text_color']
+            
             context.set_source_rgba(text_color[0], text_color[1], text_color[2], text_color[3])
             context.move_to(x, y)
             context.show_text(datetime_text)

@@ -12,7 +12,7 @@ except ImportError:
 
 from ...utils.logger import setup_logger
 from ...utils.constants import DEFAULT_OVERLAY_ELEMENTS, FORM_FILLED_OVERLAY_ELEMENTS, FORM_DEPENDENT_ELEMENTS
-from .cairo import DateTimeRenderer, GridRenderer, TramoRenderer, PozosRenderer
+from .cairo import DateTimeRenderer, GridRenderer, TramoRenderer, PozosRenderer, AnnotationRenderer
 
 logger = setup_logger("OverlayManager")
 
@@ -25,6 +25,7 @@ class OverlayManager:
         self.grid_renderer = GridRenderer()
         self.tramo_renderer = TramoRenderer()
         self.pozos_renderer = PozosRenderer()
+        self.annotation_renderer = AnnotationRenderer()
         
         # Control de visibilidad - usando configuración centralizada
         self.overlay_config = DEFAULT_OVERLAY_ELEMENTS.copy()
@@ -77,6 +78,11 @@ class OverlayManager:
             if overlays.get('cairo_pozo_fin'):
                 overlays['cairo_pozo_fin'].connect("draw", self._on_cairo_draw_pozo_fin)
                 logger.info("✅ Pozo fin renderer configurado")
+            
+            # === CAIRO OVERLAY ANOTACIONES ===
+            if overlays.get('cairo_annotation'):
+                overlays['cairo_annotation'].connect("draw", self._on_cairo_draw_annotation)
+                logger.info("✅ Annotation renderer configurado")
                 
         except Exception as e:
             logger.error(f"Error configurando overlays: {e}")
@@ -109,6 +115,10 @@ class OverlayManager:
     def _on_cairo_draw_pozo_fin(self, element, context, timestamp, duration, user_data=None):
         """Callback delegado al PozosRenderer - pozo fin"""
         return self.pozos_renderer.draw_pozo_fin(context, self.overlay_config, self.pozo_fin_text)
+    
+    def _on_cairo_draw_annotation(self, element, context, timestamp, duration, user_data=None):
+        """Callback delegado al AnnotationRenderer"""
+        return self.annotation_renderer.draw(context, self.overlay_config)
     
     # === MÉTODOS PÚBLICOS ===
     
@@ -180,4 +190,32 @@ class OverlayManager:
         else:
             # Solo elementos que no dependen del formulario
             return [key for key in self.overlay_config.keys() 
-                   if key not in FORM_DEPENDENT_ELEMENTS] 
+                   if key not in FORM_DEPENDENT_ELEMENTS]
+    
+    # === MÉTODOS PARA ANOTACIONES ===
+    
+    def start_annotation(self):
+        """Iniciar modo de anotación"""
+        self.annotation_renderer.start_annotation()
+        logger.info("Modo de anotación iniciado desde overlay manager")
+    
+    def stop_annotation(self):
+        """Detener modo de anotación"""
+        self.annotation_renderer.stop_annotation()
+        logger.info("Modo de anotación detenido desde overlay manager")
+    
+    def add_annotation_character(self, char):
+        """Agregar carácter a la anotación"""
+        self.annotation_renderer.add_character(char)
+    
+    def remove_annotation_character(self):
+        """Eliminar último carácter de la anotación"""
+        self.annotation_renderer.remove_character()
+    
+    def get_annotation_text(self):
+        """Obtener texto actual de la anotación"""
+        return self.annotation_renderer.get_text()
+    
+    def is_annotation_active(self):
+        """Verificar si la anotación está activa"""
+        return self.annotation_renderer.is_annotation_active() 
