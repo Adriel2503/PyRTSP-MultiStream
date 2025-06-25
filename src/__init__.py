@@ -10,7 +10,7 @@ __description__ = "Sistema de streaming RTSP de ultra baja latencia"
 
 # Importaciones principales del paquete
 from .core.application import Application
-from .ui.main_window import MainWindow
+from .ui.core.main_window import MainWindow
 from .ui.video_widget import VideoWidget
 from .metrics.stream_metrics import StreamMetrics
 

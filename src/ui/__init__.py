@@ -2,9 +2,10 @@
 """
 Módulo de interfaz de usuario para PyRTSP-FastStream
 Contiene todos los componentes de la GUI basada en PyQt6
+Refactorizado con estructura modular
 """
 
-from .main_window import MainWindow
+from .core.main_window import MainWindow
 from .video_widget import VideoWidget
 from .login_screen import LoginScreen
 

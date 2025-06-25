@@ -11,7 +11,7 @@ APP_TITLE = "🚀 Cámara IP - GStreamer + PyQt6 (D3D11 Overlay)"
 # === CONFIGURACIÓN DE GSTREAMER ===
 DEFAULT_RTSP_URL = "rtsp://admin:Prototipo@192.168.18.5:554/Streaming/Channels/101"
 
-# Pipeline GStreamer optimizado CON OVERLAYS NATIVOS (5 overlays: malla + 4 textos)
+# Pipeline GStreamer optimizado CON OVERLAYS NATIVOS (6 overlays: malla + 5 textos)
 GSTREAMER_PIPELINE_TEMPLATE = """
 rtspsrc location={url} protocols=tcp latency=0 name=rtspsrc
 ! rtph264depay name=depay
@@ -21,6 +21,7 @@ rtspsrc location={url} protocols=tcp latency=0 name=rtspsrc
 ! cairooverlay name=cairo_datetime
 ! cairooverlay name=cairo_ref_tramo
 ! cairooverlay name=cairo_pozo_inicio
+! cairooverlay name=cairo_distancia
 ! cairooverlay name=cairo_pozo_fin
 ! d3d11videosink name=videosink
 """
@@ -89,6 +90,20 @@ CAIRO_POZO_FIN_CONFIG = {
     'border_radius': 15,                     # Mismas esquinas redondeadas
     'position': 'bottom-right',
     'text': ''                               # Texto inicial vacío
+}
+
+# Configuración para DISTANCIA (lado derecho inferior, encima de POZO FIN)
+CAIRO_DISTANCIA_CONFIG = {
+    'font_family': 'Arial',
+    'font_size': 32,                         # Mismo tamaño que otros overlays
+    'font_weight': 'bold',
+    'text_color': (1.0, 1.0, 1.0, 1.0),     # Blanco RGBA
+    'bg_color': (1.0, 0.65, 0.15, 0.2),     # Mismo naranja transparente
+    'padding': 25,                           # Mismo padding
+    'border_radius': 15,                     # Mismas esquinas redondeadas
+    'position': 'bottom-right-above',        # Encima de POZO FIN
+    'text': '0.0 m',                         # Texto inicial por defecto
+    'vertical_offset': 120                   # Separación aumentada del overlay de POZO FIN
 }
 
 # Configuración simplificada para timestamp (respaldo si cairo no funciona)

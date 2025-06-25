@@ -13,7 +13,7 @@ from PyQt6.QtWidgets import QApplication
 
 from ..utils.constants import APP_NAME, APP_VERSION
 from ..utils.logger import setup_logger
-from ..ui.main_window import MainWindow
+from ..ui.core.main_window import MainWindow
 
 logger = setup_logger("Application")
 

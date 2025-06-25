@@ -1,0 +1,95 @@
+# -*- coding: utf-8 -*-
+"""
+Renderer especializado para overlay de REF. TRAMO
+Fondo naranja transparente, esquina superior derecha
+"""
+
+try:
+    import cairo
+    CAIRO_AVAILABLE = True
+except ImportError:
+    CAIRO_AVAILABLE = False
+
+from ....utils.constants import CAIRO_REF_TRAMO_CONFIG
+from ....utils.logger import setup_logger
+
+logger = setup_logger("TramoRenderer")
+
+class TramoRenderer:
+    """Renderer especializado para REF. TRAMO"""
+    
+    def __init__(self):
+        self.config = CAIRO_REF_TRAMO_CONFIG
+        logger.debug("TramoRenderer inicializado")
+    
+    def draw(self, context, overlay_config, ref_tramo_text):
+        """Dibujar REF. TRAMO con fondo naranja transparente"""
+        if not CAIRO_AVAILABLE or not ref_tramo_text:
+            return False
+            
+        # Verificar si el tramo está habilitado
+        if not overlay_config.get('tramo_enabled', True):
+            return False
+            
+        try:
+            # Configurar fuente
+            context.select_font_face(
+                self.config['font_family'], 
+                cairo.FONT_SLANT_NORMAL, 
+                cairo.FONT_WEIGHT_BOLD if self.config['font_weight'] == 'bold' else cairo.FONT_WEIGHT_NORMAL
+            )
+            context.set_font_size(self.config['font_size'])
+            
+            # Obtener dimensiones del texto
+            text_extents = context.text_extents(ref_tramo_text)
+            text_width = text_extents.width
+            text_height = text_extents.height
+            
+            # Obtener dimensiones reales del video
+            surface = context.get_target()
+            video_width = surface.get_width()
+            video_height = surface.get_height()
+            
+            # SISTEMA SIMÉTRICO: Box fijo derecha, crece hacia la izquierda
+            padding = self.config['padding']
+            DISTANCIA_FIJA_BORDE = 150  # 150px desde borde derecho (simétrico)
+            
+            # Dimensiones del fondo
+            bg_width = text_width + (padding * 2)
+            bg_height = text_height + (padding * 1.5)
+            
+            # Posición: box fijo desde borde derecho, crece hacia izquierda
+            box_right = video_width - DISTANCIA_FIJA_BORDE  # Final fijo del box (1130px)
+            box_left = box_right - bg_width  # Inicio variable del box (crece hacia izquierda)
+            x = box_left + padding  # Posición del texto (dentro del box)
+            y = padding + text_height + 40  # Misma altura que datetime
+            
+            # === DIBUJAR FONDO NARANJA TRANSPARENTE ===
+            bg_color = self.config['bg_color']
+            context.set_source_rgba(bg_color[0], bg_color[1], bg_color[2], bg_color[3])
+            
+            # Rectángulo con esquinas redondeadas - TRAMO crece hacia IZQUIERDA
+            radius = self.config['border_radius']
+            self._draw_rounded_rectangle(context, box_left, y - text_height - padding/2, bg_width, bg_height, radius)
+            context.fill()
+            
+            # === DIBUJAR TEXTO BLANCO ===
+            text_color = self.config['text_color']
+            context.set_source_rgba(text_color[0], text_color[1], text_color[2], text_color[3])
+            context.move_to(x, y)
+            context.show_text(ref_tramo_text)
+            
+            return True
+            
+        except Exception as e:
+            logger.error(f"❌ Error en Tramo renderer: {e}")
+            return False
+    
+    def _draw_rounded_rectangle(self, context, x, y, width, height, radius):
+        """Dibujar rectángulo con esquinas redondeadas"""
+        context.new_path()
+        context.arc(x + radius, y + radius, radius, 3.14159, 3*3.14159/2)
+        context.arc(x + width - radius, y + radius, radius, 3*3.14159/2, 0)
+        context.arc(x + width - radius, y + height - radius, radius, 0, 3.14159/2)
+        context.arc(x + radius, y + height - radius, radius, 3.14159/2, 3.14159)
+        context.close_path() 
