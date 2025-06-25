@@ -1,10 +1,9 @@
 # -*- coding: utf-8 -*-
 """
-Panel de configuración global para overlays
-Maneja sliders, colores, opacidad y configuraciones generales
+Panel de configuración global de overlays
+Maneja configuraciones que afectan a todos los elementos
 """
 
-import datetime
 from PyQt6.QtWidgets import (
     QGroupBox, QGridLayout, QLabel, QSlider, QSpinBox
 )
@@ -13,60 +12,50 @@ from PyQt6.QtGui import QColor
 
 from .custom_widgets import ColorButton
 from .style_manager import StyleManager
+from ...utils.constants import CAIRO_GRID_CONFIG, CAIRO_OVERLAY_CONFIG
 from ...utils.logger import setup_logger
+import datetime
 
 logger = setup_logger("GlobalConfigPanel")
 
 class GlobalConfigPanel(QGroupBox):
-    """Panel de configuración global de overlays"""
+    """Panel de configuración global"""
     
-    def __init__(self, parent=None):
-        super().__init__("🛠️ Configuración Global", parent)
+    def __init__(self):
+        super().__init__("🌐 Configuración Global")
         
-        # Referencias a controles
-        self.datetime_label = None
-        self.constant_spinbox = None
-        self.font_size_slider = None
-        self.font_size_label = None
-        self.bg_opacity_slider = None
-        self.bg_opacity_label = None
-        self.grid_opacity_slider = None
-        self.grid_opacity_label = None
-        self.bg_color_button = None
-        self.bg_color_hex = None
-        self.text_color_button = None
-        self.text_color_hex = None
-        self.grid_color_button = None
-        self.grid_color_hex = None
-        
-        # Timer para fecha/hora
-        self.datetime_timer = None
+        # Timer para actualización de fecha/hora
+        self.datetime_timer = QTimer()
+        self.datetime_timer.timeout.connect(self.update_datetime_display)
         
         self.setup_ui()
-        self.setup_datetime_timer()
-        logger.info("GlobalConfigPanel inicializado")
+        self.setup_styles()
+        
+        # Iniciar timer de fecha/hora
+        self.datetime_timer.start(1000)  # Actualizar cada segundo
+        
+        logger.debug("GlobalConfigPanel inicializado")
     
     def setup_ui(self):
         """Configurar interfaz del panel"""
-        self.setStyleSheet(StyleManager.get_group_box_style("#4CAF50"))
-        
         layout = QGridLayout(self)
         layout.setContentsMargins(15, 20, 15, 15)
-        layout.setSpacing(12)
+        layout.setSpacing(15)
         
-        # === FECHA Y HORA (DISPLAY) ===
+        # === FECHA Y HORA (DISPLAY DINÁMICO) ===
         layout.addWidget(QLabel("Fecha y Hora"), 0, 0)
-        self.datetime_label = QLabel("2025/06/24  14:13:19")
-        self.datetime_label.setStyleSheet(StyleManager.get_datetime_label_style())
-        layout.addWidget(self.datetime_label, 0, 1, 1, 2)
+        self.datetime_display = QLabel()
+        self.datetime_display.setStyleSheet(StyleManager.get_datetime_display_style())
+        self.update_datetime_display()  # Mostrar inmediatamente
+        layout.addWidget(self.datetime_display, 0, 1, 1, 2)
         
         # === CONSTANTE ===
         layout.addWidget(QLabel("Constante"), 1, 0)
         self.constant_spinbox = QSpinBox()
         self.constant_spinbox.setRange(1, 100)
-        self.constant_spinbox.setValue(10)
+        self.constant_spinbox.setValue(42)
         self.constant_spinbox.setStyleSheet(StyleManager.get_spinbox_style())
-        layout.addWidget(self.constant_spinbox, 1, 1)
+        layout.addWidget(self.constant_spinbox, 1, 1, 1, 2)
         
         # === TAMAÑO DE FUENTE ===
         layout.addWidget(QLabel("Tamaño de Fuente"), 2, 0)
@@ -82,7 +71,7 @@ class GlobalConfigPanel(QGroupBox):
         layout.addWidget(self.font_size_slider, 2, 1)
         layout.addWidget(self.font_size_label, 2, 2)
         
-        # === OPACIDAD DEL FONDO ===
+        # === OPACIDAD DE FONDO ===
         layout.addWidget(QLabel("Opacidad del Fondo"), 3, 0)
         self.bg_opacity_slider = QSlider(Qt.Orientation.Horizontal)
         self.bg_opacity_slider.setRange(0, 100)
@@ -100,9 +89,11 @@ class GlobalConfigPanel(QGroupBox):
         layout.addWidget(QLabel("Opacidad Cuadrículas"), 4, 0)
         self.grid_opacity_slider = QSlider(Qt.Orientation.Horizontal)
         self.grid_opacity_slider.setRange(0, 100)
-        self.grid_opacity_slider.setValue(80)
+        # Usar opacidad actual de las constantes
+        current_grid_opacity = int(CAIRO_GRID_CONFIG['line_color'][3] * 100)
+        self.grid_opacity_slider.setValue(current_grid_opacity)
         self.grid_opacity_slider.setStyleSheet(StyleManager.get_slider_style())
-        self.grid_opacity_label = QLabel("0.8")
+        self.grid_opacity_label = QLabel(f"{current_grid_opacity/100:.1f}")
         self.grid_opacity_label.setStyleSheet(StyleManager.get_value_label_style())
         self.grid_opacity_slider.valueChanged.connect(
             lambda v: self.grid_opacity_label.setText(f"{v/100:.1f}")
@@ -142,73 +133,103 @@ class GlobalConfigPanel(QGroupBox):
         layout.addWidget(self.text_color_button, 6, 1)
         layout.addWidget(self.text_color_hex, 6, 2)
         
-        # Color de Cuadrícula
+        # Color de Cuadrícula - ✅ USAR COLOR ACTUAL DE CONSTANTS.PY
         layout.addWidget(QLabel("Color de Cuadrícula"), 7, 0)
         self.grid_color_button = ColorButton()
-        self.grid_color_button.set_color(QColor(176, 33, 33))  # #b02121
-        self.grid_color_hex = QLabel("#b02121")
-        self.grid_color_hex.setStyleSheet(StyleManager.get_color_hex_style("white", "#b02121"))
+        # Convertir RGBA de constants.py a QColor
+        grid_rgba = CAIRO_GRID_CONFIG['line_color']
+        current_grid_color = QColor(
+            int(grid_rgba[0] * 255),  # R
+            int(grid_rgba[1] * 255),  # G
+            int(grid_rgba[2] * 255),  # B
+            int(grid_rgba[3] * 255)   # A
+        )
+        self.grid_color_button.set_color(current_grid_color)
+        self.grid_color_hex = QLabel(current_grid_color.name().upper())
+        self.grid_color_hex.setStyleSheet(StyleManager.get_color_hex_style("white", current_grid_color.name()))
         self.grid_color_button.color_changed.connect(
             lambda c: self.grid_color_hex.setText(c.name().upper())
         )
         layout.addWidget(self.grid_color_button, 7, 1)
         layout.addWidget(self.grid_color_hex, 7, 2)
     
+    def setup_styles(self):
+        """Aplicar estilos al panel"""
+        self.setStyleSheet(StyleManager.get_group_box_style("🌐 Configuración Global"))
+    
     def apply_label_styles(self, layout):
         """Aplicar estilos a las etiquetas"""
         for i in range(layout.rowCount()):
-            label = layout.itemAtPosition(i, 0)
-            if label and isinstance(label.widget(), QLabel):
-                label.widget().setStyleSheet(StyleManager.get_label_style())
+            label_item = layout.itemAtPosition(i, 0)
+            if label_item and isinstance(label_item.widget(), QLabel):
+                label_item.widget().setStyleSheet(StyleManager.get_label_style())
     
-    def setup_datetime_timer(self):
-        """Configurar timer para actualización de fecha/hora"""
-        self.datetime_timer = QTimer()
-        self.datetime_timer.timeout.connect(self.update_datetime)
-        self.datetime_timer.start(1000)  # Actualizar cada segundo
-        logger.debug("Timer de fecha/hora iniciado")
-    
-    def update_datetime(self):
-        """Actualizar display de fecha y hora"""
-        if self.datetime_label:
-            now = datetime.datetime.now()
-            formatted = now.strftime("%Y / %m / %d    %H : %M : %S")
-            self.datetime_label.setText(formatted)
+    def update_datetime_display(self):
+        """Actualizar display de fecha y hora en tiempo real"""
+        current_time = datetime.datetime.now()
+        formatted_time = current_time.strftime('%Y/%m/%d %H:%M:%S')
+        self.datetime_display.setText(formatted_time)
     
     def get_config(self):
         """Obtener configuración actual del panel"""
-        return {
-            'font_size': self.font_size_slider.value() if self.font_size_slider else 32,
-            'bg_opacity': (self.bg_opacity_slider.value() / 100.0) if self.bg_opacity_slider else 0.6,
-            'grid_opacity': (self.grid_opacity_slider.value() / 100.0) if self.grid_opacity_slider else 0.8,
-            'constant': self.constant_spinbox.value() if self.constant_spinbox else 10,
-            'bg_color': self.bg_color_button.get_color().name() if self.bg_color_button else "#1a1a1a",
-            'text_color': self.text_color_button.get_color().name() if self.text_color_button else "#ffffff",
-            'grid_color': self.grid_color_button.get_color().name() if self.grid_color_button else "#b02121"
+        # Obtener color de cuadrícula y convertir a RGBA normalizado
+        grid_color = self.grid_color_button.get_color()
+        grid_opacity = self.grid_opacity_slider.value() / 100.0
+        
+        grid_rgba = (
+            grid_color.red() / 255.0,      # R normalizado
+            grid_color.green() / 255.0,    # G normalizado  
+            grid_color.blue() / 255.0,     # B normalizado
+            grid_opacity                   # A del slider
+        )
+        
+        config = {
+            'font_size': self.font_size_slider.value(),
+            'bg_opacity': self.bg_opacity_slider.value() / 100.0,
+            'grid_opacity': grid_opacity,
+            'bg_color': self.bg_color_button.get_color(),
+            'text_color': self.text_color_button.get_color(),
+            'grid_color': self.grid_color_button.get_color(),
+            'grid_color_rgba': grid_rgba,  # ✅ RGBA para el renderer
+            'constant': self.constant_spinbox.value()
         }
+        
+        logger.debug(f"Configuración global obtenida: {config}")
+        logger.debug(f"Color de cuadrícula RGBA: {grid_rgba}")
+        
+        return config
     
     def load_config(self, config):
         """Cargar configuración en el panel"""
         if not config:
             return
         
-        if self.font_size_slider and 'font_size' in config:
+        # Cargar valores si están disponibles
+        if 'font_size' in config:
             self.font_size_slider.setValue(config['font_size'])
         
-        if self.bg_opacity_slider and 'bg_opacity' in config:
+        if 'bg_opacity' in config:
             self.bg_opacity_slider.setValue(int(config['bg_opacity'] * 100))
         
-        if self.grid_opacity_slider and 'grid_opacity' in config:
+        if 'grid_opacity' in config:
             self.grid_opacity_slider.setValue(int(config['grid_opacity'] * 100))
         
-        if self.constant_spinbox and 'constant' in config:
+        if 'bg_color' in config and isinstance(config['bg_color'], QColor):
+            self.bg_color_button.set_color(config['bg_color'])
+        
+        if 'text_color' in config and isinstance(config['text_color'], QColor):
+            self.text_color_button.set_color(config['text_color'])
+        
+        if 'grid_color' in config and isinstance(config['grid_color'], QColor):
+            self.grid_color_button.set_color(config['grid_color'])
+        
+        if 'constant' in config:
             self.constant_spinbox.setValue(config['constant'])
         
-        logger.debug(f"Configuración cargada: {config}")
+        logger.debug("Configuración cargada en GlobalConfigPanel")
     
     def cleanup(self):
-        """Limpiar recursos al cerrar"""
-        if self.datetime_timer:
+        """Limpiar recursos del panel"""
+        if self.datetime_timer.isActive():
             self.datetime_timer.stop()
-            self.datetime_timer = None
         logger.debug("GlobalConfigPanel limpiado") 

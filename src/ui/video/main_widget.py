@@ -101,7 +101,14 @@ class VideoWidget(QFrame):
     
     def get_overlay_config(self):
         """Obtener configuración actual de overlays"""
-        return self.overlay_manager.overlay_config.copy()
+        config = self.overlay_manager.overlay_config.copy()
+        # Incluir estado del formulario
+        config['form_filled'] = self.overlay_manager.is_form_filled()
+        return config
+    
+    def enable_form_elements(self):
+        """Habilitar elementos dependientes del formulario"""
+        self.overlay_manager.enable_form_elements()
     
     def resizeEvent(self, event):
         """Manejar redimensionamiento del widget"""

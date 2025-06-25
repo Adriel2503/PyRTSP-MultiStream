@@ -35,7 +35,7 @@ CAIRO_GRID_CONFIG = {
     'line_width': 1,                         # Grosor de líneas en píxeles
     'grid_spacing_x': 400,                    # Espaciado horizontal entre líneas (80px)
     'grid_spacing_y': 200,                    # Espaciado vertical entre líneas (60px)
-    'start_offset_x': 50,                    # Offset inicial horizontal (40px desde borde)
+    'start_offset_x': 150,                    # Offset inicial horizontal (40px desde borde)
     'start_offset_y': 40,                    # Offset inicial vertical (30px desde borde)
     'changeable_color': True                 # Permitir cambio de color en el futuro
 }
@@ -210,4 +210,42 @@ STATUS_MESSAGES = {
 
 # === CONFIGURACIÓN DE LOGGING ===
 LOG_FORMAT = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-LOG_LEVEL = "INFO"  # Nivel normal de logging 
+LOG_LEVEL = "INFO"  # Nivel normal de logging
+
+# === CONFIGURACIÓN INICIAL DE ELEMENTOS OVERLAY ===
+# ✅ FUENTE ÚNICA DE VERDAD para configuración de elementos
+DEFAULT_OVERLAY_ELEMENTS = {
+    'grid_enabled': True,              # ✅ Cuadrículas habilitadas
+    'fecha_enabled': True,             # ✅ Fecha y hora habilitada  
+    'tramo_enabled': False,            # ❌ Referencia tramo deshabilitada
+    'pozo_inicial_enabled': False,     # ❌ Pozo desde deshabilitado
+    'distancia_enabled': True,         # ✅ Distancia habilitada
+    'pozo_final_enabled': False        # ❌ Pozo hasta deshabilitado
+}
+
+# Elementos que requieren formulario de inspección para ser habilitados
+FORM_DEPENDENT_ELEMENTS = {
+    'tramo_enabled',
+    'pozo_inicial_enabled', 
+    'pozo_final_enabled'
+}
+
+# Configuración cuando se llena el formulario - activa elementos dependientes
+FORM_FILLED_OVERLAY_ELEMENTS = {
+    'grid_enabled': True,              # ✅ Cuadrículas habilitadas
+    'fecha_enabled': True,             # ✅ Fecha y hora habilitada  
+    'tramo_enabled': True,             # ✅ Referencia tramo habilitada
+    'pozo_inicial_enabled': True,      # ✅ Pozo desde habilitado
+    'distancia_enabled': True,         # ✅ Distancia habilitada
+    'pozo_final_enabled': True         # ✅ Pozo hasta habilitado
+}
+
+# Mapeo de elementos UI con sus configuraciones
+OVERLAY_ELEMENTS_UI_CONFIG = [
+    ("Fecha y Hora", "fecha_enabled"),
+    ("Referencia Tramo", "tramo_enabled"), 
+    ("Pozo Desde", "pozo_inicial_enabled"),
+    ("Pozo Hasta", "pozo_final_enabled"),
+    ("Cuadrículas", "grid_enabled"),
+    ("Distancia", "distancia_enabled")
+] 

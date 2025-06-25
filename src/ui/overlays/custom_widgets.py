@@ -103,4 +103,76 @@ class ColorButton(QPushButton):
         """Establecer color"""
         self.current_color = color
         self.update_style()
-        logger.debug(f"Color establecido: {color.name()}") 
+        logger.debug(f"Color establecido: {color.name()}")
+
+
+class EyeToggleButton(QPushButton):
+    """Botón toggle con icono de ojo abierto/cerrado"""
+    
+    toggled = pyqtSignal(bool)
+    
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self._checked = True  # Estado interno
+        self.setFixedSize(35, 25)
+        self.setCheckable(True)
+        self.setChecked(True)
+        self.clicked.connect(self._on_clicked)
+        self.update_appearance()
+        logger.debug("EyeToggleButton creado")
+    
+    def _on_clicked(self):
+        """Manejar click del botón"""
+        self._checked = not self._checked
+        self.update_appearance()
+        self.toggled.emit(self._checked)
+    
+    def update_appearance(self):
+        """Actualizar apariencia según estado"""
+        if self._checked:
+            # Ojo abierto - elemento visible
+            self.setText("👁")
+            self.setStyleSheet("""
+            QPushButton {
+                background: #4CAF50;
+                color: white;
+                border: 2px solid #45a049;
+                border-radius: 6px;
+                font-size: 14px;
+                font-weight: bold;
+            }
+            QPushButton:hover {
+                background: #45a049;
+                border: 2px solid #4CAF50;
+            }
+            """)
+            self.setToolTip("Elemento visible - Click para ocultar")
+        else:
+            # Ojo cerrado - elemento oculto
+            self.setText("👁‍🗨")
+            self.setStyleSheet("""
+            QPushButton {
+                background: #757575;
+                color: white;
+                border: 2px solid #616161;
+                border-radius: 6px;
+                font-size: 14px;
+                font-weight: bold;
+            }
+            QPushButton:hover {
+                background: #616161;
+                border: 2px solid #757575;
+            }
+            """)
+            self.setToolTip("Elemento oculto - Click para mostrar")
+    
+    def isChecked(self):
+        """Obtener estado actual"""
+        return self._checked
+    
+    def setChecked(self, checked):
+        """Establecer estado"""
+        if self._checked != checked:
+            self._checked = checked
+            self.update_appearance()
+            self.toggled.emit(self._checked)

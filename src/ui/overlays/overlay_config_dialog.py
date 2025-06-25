@@ -102,18 +102,24 @@ class OverlayConfigDialog(QDialog):
     def load_current_config(self):
         """Cargar configuración actual en los paneles"""
         if not self.current_config:
-            logger.debug("No hay configuración actual para cargar")
+            logger.debug("No hay configuración actual - usando valores por defecto del panel")
             return
         
         # Cargar configuración en panel global
         if self.global_panel:
             self.global_panel.load_config(self.current_config)
         
-        # Cargar configuración en panel de elementos
+        # ✅ IMPORTANTE: Cargar configuración ACTUAL de elementos (no siempre defaults)
+        # Esto mantiene los cambios que el usuario ya hizo previamente
         if self.elements_panel:
             self.elements_panel.load_config(self.current_config)
-        
-        logger.debug(f"Configuración actual cargada: {self.current_config}")
+            
+            # Sincronizar estado del formulario
+            form_filled = self.current_config.get('form_filled', False)
+            self.elements_panel.set_form_filled(form_filled)
+            
+            logger.debug(f"Configuración de elementos cargada: {self.current_config}")
+            logger.debug(f"Estado del formulario: {form_filled}")
     
     def apply_config(self):
         """Aplicar configuración de todos los paneles"""

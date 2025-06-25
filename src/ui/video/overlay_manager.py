@@ -11,6 +11,7 @@ except ImportError:
     CAIRO_AVAILABLE = False
 
 from ...utils.logger import setup_logger
+from ...utils.constants import DEFAULT_OVERLAY_ELEMENTS, FORM_FILLED_OVERLAY_ELEMENTS, FORM_DEPENDENT_ELEMENTS
 from .cairo import DateTimeRenderer, GridRenderer, TramoRenderer, PozosRenderer
 
 logger = setup_logger("OverlayManager")
@@ -25,15 +26,14 @@ class OverlayManager:
         self.tramo_renderer = TramoRenderer()
         self.pozos_renderer = PozosRenderer()
         
-        # Control de visibilidad (por defecto todos activos)
-        self.overlay_config = {
-            'grid_enabled': True,
-            'fecha_enabled': True,
-            'tramo_enabled': True,
-            'pozo_inicial_enabled': True,
-            'distancia_enabled': True,
-            'pozo_final_enabled': True
-        }
+        # Control de visibilidad - usando configuración centralizada
+        self.overlay_config = DEFAULT_OVERLAY_ELEMENTS.copy()
+        
+        # ✅ NUEVA: Configuración dinámica para grid renderer
+        self.dynamic_grid_config = {}
+        
+        # Estado del formulario de inspección
+        self.form_filled = False
         
         # Variables para textos dinámicos
         self.ref_tramo_text = ""
@@ -84,8 +84,11 @@ class OverlayManager:
     # === CALLBACKS DELEGADOS A RENDERERS ===
     
     def _on_cairo_draw_grid(self, element, context, timestamp, duration, user_data=None):
-        """Callback delegado al GridRenderer"""
-        return self.grid_renderer.draw(context, self.overlay_config)
+        """Callback delegado al GridRenderer con configuración dinámica"""
+        # ✅ NUEVA: Pasar configuración dinámica al grid renderer
+        combined_config = self.overlay_config.copy()
+        combined_config.update(self.dynamic_grid_config)
+        return self.grid_renderer.draw(context, combined_config)
     
     def _on_cairo_draw_datetime(self, element, context, timestamp, duration, user_data=None):
         """Callback delegado al DateTimeRenderer"""
@@ -110,26 +113,71 @@ class OverlayManager:
     # === MÉTODOS PÚBLICOS ===
     
     def update_config(self, config):
-        """Actualizar configuración de visibilidad"""
+        """Actualizar configuración de visibilidad y estilos"""
+        # Actualizar configuración de visibilidad
         self.overlay_config.update(config)
+        
+        # ✅ NUEVA: Manejar configuración específica de cuadrícula
+        if 'grid_color_rgba' in config:
+            self.dynamic_grid_config['grid_color_rgba'] = config['grid_color_rgba']
+            logger.info(f"Color de cuadrícula actualizado: {config['grid_color_rgba']}")
+        
+        # Manejar otras configuraciones globales si es necesario
+        if 'grid_opacity' in config:
+            self.dynamic_grid_config['grid_opacity'] = config['grid_opacity']
+            logger.info(f"Opacidad de cuadrícula actualizada: {config['grid_opacity']}")
+        
         logger.info(f"Configuración de overlays actualizada: {config}")
+        logger.debug(f"Configuración dinámica de grid: {self.dynamic_grid_config}")
+    
+    def is_form_filled(self):
+        """Verificar si el formulario está lleno"""
+        return self.form_filled
+    
+    def enable_form_elements(self):
+        """Habilitar elementos dependientes del formulario"""
+        logger.info("Habilitando elementos dependientes del formulario")
+        
+        # Cambiar a configuración con elementos del formulario habilitados
+        self.overlay_config.update(FORM_FILLED_OVERLAY_ELEMENTS)
+        self.form_filled = True
+        
+        logger.debug(f"Nueva configuración: {self.overlay_config}")
     
     def update_ref_tramo(self, ref_tramo):
-        """Actualizar texto de REF. TRAMO"""
-        self.ref_tramo_text = ref_tramo if ref_tramo else ""
-        logger.info(f"✅ REF. TRAMO actualizado: '{self.ref_tramo_text}'")
+        """Actualizar texto de referencia de tramo"""
+        self.ref_tramo_text = ref_tramo
+        logger.debug(f"REF. TRAMO actualizado: '{ref_tramo}'")
     
     def update_pozo_inicio(self, pozo_inicio):
-        """Actualizar texto de POZO INICIO"""
-        self.pozo_inicio_text = pozo_inicio if pozo_inicio else ""
-        logger.info(f"✅ POZO INICIO actualizado: '{self.pozo_inicio_text}'")
+        """Actualizar texto de pozo inicio"""
+        self.pozo_inicio_text = pozo_inicio
+        logger.debug(f"POZO INICIO actualizado: '{pozo_inicio}'")
     
     def update_pozo_fin(self, pozo_fin):
-        """Actualizar texto de POZO FIN"""
-        self.pozo_fin_text = pozo_fin if pozo_fin else ""
-        logger.info(f"✅ POZO FIN actualizado: '{self.pozo_fin_text}'")
+        """Actualizar texto de pozo fin"""
+        self.pozo_fin_text = pozo_fin
+        logger.debug(f"POZO FIN actualizado: '{pozo_fin}'")
     
     def update_distancia(self, distancia):
-        """Actualizar texto de DISTANCIA"""
-        self.distancia_text = distancia if distancia else "0.0 m"
-        logger.info(f"✅ DISTANCIA actualizada: '{self.distancia_text}'") 
+        """Actualizar texto de distancia"""
+        self.distancia_text = distancia
+        logger.debug(f"DISTANCIA actualizada: '{distancia}'")
+    
+    def get_current_texts(self):
+        """Obtener textos actuales de overlays"""
+        return {
+            'ref_tramo': self.ref_tramo_text,
+            'pozo_inicio': self.pozo_inicio_text,
+            'pozo_fin': self.pozo_fin_text,
+            'distancia': self.distancia_text
+        }
+    
+    def get_available_elements(self):
+        """Obtener elementos disponibles según estado del formulario"""
+        if self.form_filled:
+            return self.overlay_config.keys()
+        else:
+            # Solo elementos que no dependen del formulario
+            return [key for key in self.overlay_config.keys() 
+                   if key not in FORM_DEPENDENT_ELEMENTS] 

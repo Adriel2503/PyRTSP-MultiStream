@@ -47,6 +47,9 @@ class ButtonHandlers:
             self.main_window.video_widget.update_ref_tramo(ref_tramo)
             self.main_window.video_widget.update_pozo_inicio(pozo_desde)
             self.main_window.video_widget.update_pozo_fin(pozo_hasta)
+            
+            # ✅ IMPORTANTE: Activar elementos dependientes del formulario
+            self.main_window.video_widget.enable_form_elements()
         
         # Mostrar resumen simplificado
         summary = f"""

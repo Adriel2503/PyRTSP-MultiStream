@@ -113,6 +113,36 @@ class StyleManager:
         """
     
     @staticmethod
+    def get_datetime_display_style():
+        """Estilo para display dinámico de fecha/hora"""
+        return """
+        QLabel {
+            background: #34495e;
+            color: #FFA726;
+            padding: 8px;
+            border-radius: 6px;
+            font-family: 'Courier New', monospace;
+            font-weight: bold;
+            font-size: 12px;
+        }
+        """
+    
+    @staticmethod
+    def get_datetime_display_style():
+        """Estilo para display dinámico de fecha/hora"""
+        return """
+        QLabel {
+            background: #34495e;
+            color: #FFA726;
+            padding: 8px;
+            border-radius: 6px;
+            font-family: 'Courier New', monospace;
+            font-weight: bold;
+            font-size: 12px;
+        }
+        """
+    
+    @staticmethod
     def get_value_label_style():
         """Estilo para labels de valores (sliders)"""
         return """
@@ -176,16 +206,11 @@ class StyleManager:
     
     @staticmethod
     def get_element_widget_style():
-        """Estilo para contenedores de elementos"""
+        """Estilo para contenedores de elementos - SIN bordes, rectángulos ni hover effects"""
         return """
         QWidget {
-            background: rgba(255, 255, 255, 10);
-            border: 1px solid rgba(255, 255, 255, 30);
-            border-radius: 8px;
-        }
-        QWidget:hover {
-            background: rgba(255, 167, 38, 20);
-            border: 1px solid rgba(255, 167, 38, 60);
+            background: transparent;
+            border: none;
         }
         """
     

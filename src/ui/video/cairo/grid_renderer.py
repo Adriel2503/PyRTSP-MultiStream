@@ -23,7 +23,7 @@ class GridRenderer:
         logger.debug("GridRenderer inicializado")
     
     def draw(self, context, overlay_config):
-        """Dibujar malla/grilla de líneas blancas sobre el video"""
+        """Dibujar malla/grilla de líneas sobre el video con configuración dinámica"""
         if not CAIRO_AVAILABLE:
             return False
             
@@ -41,16 +41,26 @@ class GridRenderer:
             video_width = surface.get_width()
             video_height = surface.get_height()
             
-            # Configurar estilo de líneas
-            line_color = self.config['line_color']
+            # ✅ CONFIGURAR COLOR DINÁMICO
+            # Priorizar configuración dinámica sobre constantes
+            if 'grid_color_rgba' in overlay_config:
+                # Usar color dinámico desde configuración
+                line_color = overlay_config['grid_color_rgba']
+                logger.debug(f"Usando color dinámico de cuadrícula: {line_color}")
+            else:
+                # Usar color por defecto de constantes
+                line_color = self.config['line_color']
+                logger.debug(f"Usando color por defecto de cuadrícula: {line_color}")
+            
+            # Aplicar color al contexto Cairo
             context.set_source_rgba(line_color[0], line_color[1], line_color[2], line_color[3])
             context.set_line_width(self.config['line_width'])
             
             # Obtener configuración de espaciado
-            spacing_x = self.config['grid_spacing_x']  # 80px entre líneas verticales
-            spacing_y = self.config['grid_spacing_y']  # 60px entre líneas horizontales
-            offset_x = self.config['start_offset_x']   # 40px desde borde izquierdo
-            offset_y = self.config['start_offset_y']   # 30px desde borde superior
+            spacing_x = self.config['grid_spacing_x']  # 400px entre líneas verticales
+            spacing_y = self.config['grid_spacing_y']  # 200px entre líneas horizontales
+            offset_x = self.config['start_offset_x']   # 150px desde borde izquierdo
+            offset_y = self.config['start_offset_y']   # 40px desde borde superior
             
             # === DIBUJAR LÍNEAS VERTICALES PARALELAS ===
             x = offset_x

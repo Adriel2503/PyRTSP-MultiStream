@@ -9,9 +9,10 @@ from PyQt6.QtWidgets import (
 )
 from PyQt6.QtCore import Qt
 
-from .custom_widgets import ToggleSwitch
+from .custom_widgets import EyeToggleButton
 from .style_manager import StyleManager
 from ...utils.logger import setup_logger
+from ...utils.constants import DEFAULT_OVERLAY_ELEMENTS, OVERLAY_ELEMENTS_UI_CONFIG, FORM_DEPENDENT_ELEMENTS
 
 logger = setup_logger("ElementsConfigPanel")
 
@@ -19,12 +20,16 @@ class ElementsConfigPanel(QGroupBox):
     """Panel de configuración de elementos específicos de overlays"""
     
     def __init__(self, parent=None):
-        super().__init__("🎛️ Elementos en Pantalla", parent)
+        super().__init__("Elementos en Pantalla", parent)
         
         # Diccionario de toggles para elementos
         self.element_toggles = {}
         
+        # Estado del formulario (se actualiza externamente)
+        self.form_filled = False
+        
         self.setup_ui()
+        self.update_form_dependent_elements()
         logger.info("ElementsConfigPanel inicializado")
     
     def setup_ui(self):
@@ -35,25 +40,19 @@ class ElementsConfigPanel(QGroupBox):
         layout.setContentsMargins(15, 20, 15, 15)
         layout.setSpacing(15)
         
-        # Definir elementos disponibles
-        elements = [
-            ("Fecha y Hora", "fecha_enabled"),
-            ("Referencia Tramo", "tramo_enabled"),
-            ("Pozo Desde", "pozo_inicial_enabled"),
-            ("Pozo Hasta", "pozo_final_enabled"),
-            ("Cuadrículas", "grid_enabled"),
-            ("Distancia", "distancia_enabled")
-        ]
+        # Usar configuración centralizada de constants.py
+        elements = [(name, key, DEFAULT_OVERLAY_ELEMENTS[key]) 
+                   for name, key in OVERLAY_ELEMENTS_UI_CONFIG]
         
         # Crear widgets para cada elemento
-        for i, (name, key) in enumerate(elements):
+        for i, (name, key, default_state) in enumerate(elements):
             row = i // 2
             col = i % 2
             
-            element_widget = self.create_element_widget(name, key)
+            element_widget = self.create_element_widget(name, key, default_state)
             layout.addWidget(element_widget, row, col)
     
-    def create_element_widget(self, name, key):
+    def create_element_widget(self, name, key, default_state=True):
         """Crear widget para un elemento individual"""
         # Container principal
         element_widget = QWidget()
@@ -61,28 +60,15 @@ class ElementsConfigPanel(QGroupBox):
         element_layout.setContentsMargins(10, 8, 10, 8)
         element_layout.setSpacing(10)
         
-        # Icono indicador de estado
-        status_icon = QLabel("●")
-        status_icon.setFixedSize(20, 20)
-        status_icon.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        status_icon.setStyleSheet(StyleManager.get_status_icon_style(True))
-        
         # Etiqueta del elemento
         label = QLabel(name)
         label.setStyleSheet(StyleManager.get_label_style())
         
-        # Toggle switch
-        toggle = ToggleSwitch()
-        toggle.setChecked(True)  # Por defecto habilitado
+        # Eye toggle button
+        toggle = EyeToggleButton()
+        toggle.setChecked(default_state)  # Usar estado inicial configurado
         
-        # Conectar toggle con icono de estado
-        def update_status(checked, icon=status_icon):
-            icon.setStyleSheet(StyleManager.get_status_icon_style(checked))
-        
-        toggle.toggled.connect(update_status)
-        
-        # Agregar al layout
-        element_layout.addWidget(status_icon)
+        # Agregar al layout (SIN icono de estado)
         element_layout.addWidget(label)
         element_layout.addStretch()
         element_layout.addWidget(toggle)
@@ -147,4 +133,32 @@ class ElementsConfigPanel(QGroupBox):
     def get_enabled_elements_count(self):
         """Obtener número de elementos habilitados"""
         count = sum(1 for toggle in self.element_toggles.values() if toggle.isChecked())
-        return count 
+        return count
+    
+    def set_form_filled(self, filled):
+        """Establecer estado del formulario"""
+        self.form_filled = filled
+        self.update_form_dependent_elements()
+        logger.info(f"Estado del formulario actualizado: {filled}")
+    
+    def update_form_dependent_elements(self):
+        """Actualizar disponibilidad de elementos dependientes del formulario"""
+        for key, toggle in self.element_toggles.items():
+            if key in FORM_DEPENDENT_ELEMENTS:
+                # Habilitar/deshabilitar según estado del formulario
+                toggle.setEnabled(self.form_filled)
+                if not self.form_filled:
+                    # Si no hay formulario, forzar a cerrado
+                    toggle.setChecked(False)
+                    # Cambiar tooltip para indicar que requiere formulario
+                    toggle.setToolTip("⚠️ Requiere llenar formulario de inspección")
+                else:
+                    # Si hay formulario, habilitar y activar por defecto
+                    toggle.setChecked(True)
+                    toggle.setToolTip("Elemento disponible - Click para mostrar/ocultar")
+                
+                logger.debug(f"Elemento {key} {'habilitado' if self.form_filled else 'bloqueado'}")
+    
+    def is_form_filled(self):
+        """Verificar si el formulario ha sido llenado"""
+        return self.form_filled 
