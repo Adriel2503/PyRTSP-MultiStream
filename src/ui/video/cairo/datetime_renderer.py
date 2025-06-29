@@ -22,6 +22,8 @@ class DateTimeRenderer:
     
     def __init__(self):
         self.config = CAIRO_OVERLAY_CONFIG
+        self.custom_datetime_base = None  # Fecha/hora base personalizada
+        self.system_datetime_base = None  # Momento del sistema cuando se estableció la base
         logger.debug("DateTimeRenderer inicializado")
     
     def draw(self, context, overlay_config):
@@ -34,9 +36,8 @@ class DateTimeRenderer:
             return False
             
         try:
-            # Obtener fecha/hora actual
-            now = datetime.datetime.now()
-            datetime_text = now.strftime(self.config['datetime_format'])
+            # Obtener fecha/hora - personalizada o del sistema
+            datetime_text = self._get_datetime_text(overlay_config)
             
             # Configurar fuente
             context.select_font_face(
@@ -98,6 +99,53 @@ class DateTimeRenderer:
         except Exception as e:
             logger.error(f"❌ Error en DateTime renderer: {e}")
             return False
+    
+    def _get_datetime_text(self, overlay_config):
+        """Obtener texto de fecha/hora - personalizada corriendo o del sistema"""
+        # Verificar si hay fecha/hora personalizada
+        if 'datetime_custom' in overlay_config and overlay_config['datetime_custom']:
+            custom_datetime_str = overlay_config['datetime_custom'].strip()
+            if custom_datetime_str:
+                return self._get_running_custom_datetime(custom_datetime_str)
+        
+        # Si no hay personalizada, reiniciar bases y usar fecha/hora del sistema
+        self.custom_datetime_base = None
+        self.system_datetime_base = None
+        now = datetime.datetime.now()
+        system_datetime = now.strftime(self.config['datetime_format'])
+        logger.debug(f"Usando fecha/hora del sistema: {system_datetime}")
+        return system_datetime
+    
+    def _get_running_custom_datetime(self, custom_datetime_str):
+        """Obtener fecha/hora personalizada que corre en tiempo real"""
+        try:
+            # Intentar parsear la fecha personalizada
+            custom_dt = datetime.datetime.strptime(custom_datetime_str, self.config['datetime_format'])
+            
+            # Si es la primera vez o cambió la fecha base, establecer nuevas bases
+            if (self.custom_datetime_base is None or 
+                self.custom_datetime_base != custom_dt):
+                
+                self.custom_datetime_base = custom_dt
+                self.system_datetime_base = datetime.datetime.now()
+                logger.info(f"Nueva fecha/hora base establecida: {custom_datetime_str}")
+                return custom_datetime_str
+            
+            # Calcular tiempo transcurrido desde que se estableció la base
+            now = datetime.datetime.now()
+            elapsed = now - self.system_datetime_base
+            
+            # Aplicar el tiempo transcurrido a la fecha personalizada
+            running_custom_dt = self.custom_datetime_base + elapsed
+            running_datetime_str = running_custom_dt.strftime(self.config['datetime_format'])
+            
+            logger.debug(f"Fecha/hora personalizada corriendo: {running_datetime_str}")
+            return running_datetime_str
+            
+        except ValueError:
+            # Si no se puede parsear como fecha, mostrar el texto tal como está (estático)
+            logger.warning(f"No se pudo parsear '{custom_datetime_str}' como fecha, mostrando texto estático")
+            return custom_datetime_str
     
     def _draw_rounded_rectangle(self, context, x, y, width, height, radius):
         """Dibujar rectángulo con esquinas redondeadas"""

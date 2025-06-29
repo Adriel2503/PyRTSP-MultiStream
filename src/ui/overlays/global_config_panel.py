@@ -5,10 +5,10 @@ Maneja configuraciones que afectan a todos los elementos
 """
 
 from PyQt6.QtWidgets import (
-    QGroupBox, QGridLayout, QLabel, QSlider, QSpinBox
+    QGridLayout, QLabel, QSlider, QLineEdit, QWidget, QVBoxLayout
 )
-from PyQt6.QtCore import Qt, QTimer
-from PyQt6.QtGui import QColor
+from PyQt6.QtCore import Qt
+from PyQt6.QtGui import QColor, QDoubleValidator
 
 from .custom_widgets import ColorButton
 from .style_manager import StyleManager
@@ -18,52 +18,53 @@ import datetime
 
 logger = setup_logger("GlobalConfigPanel")
 
-class GlobalConfigPanel(QGroupBox):
+class GlobalConfigPanel(QWidget):
     """Panel de configuración global"""
     
     def __init__(self):
-        super().__init__("Configuración Global")
-        
-        # Timer para actualización de fecha/hora
-        self.datetime_timer = QTimer()
-        self.datetime_timer.timeout.connect(self.update_datetime_display)
+        super().__init__()
         
         self.setup_ui()
         self.setup_styles()
-        
-        # Iniciar timer de fecha/hora
-        self.datetime_timer.start(1000)  # Actualizar cada segundo
         
         logger.debug("GlobalConfigPanel inicializado")
     
     def setup_ui(self):
         """Configurar interfaz del panel"""
-        layout = QGridLayout(self)
-        layout.setContentsMargins(15, 20, 15, 15)
+        main_layout = QVBoxLayout(self)
+        main_layout.setContentsMargins(0, 0, 0, 5)
+        main_layout.setSpacing(10)
+        
+        # Layout de grid para los controles
+        layout = QGridLayout()
+        layout.setContentsMargins(15, 10, 15, 15)
         layout.setSpacing(15)
         
-        # === FECHA Y HORA (DISPLAY DINÁMICO) ===
+        # === FECHA Y HORA (EDITABLE) ===
         layout.addWidget(QLabel("Fecha y Hora"), 0, 0)
-        self.datetime_display = QLabel()
-        self.datetime_display.setStyleSheet(StyleManager.get_datetime_display_style())
-        self.update_datetime_display()  # Mostrar inmediatamente
-        layout.addWidget(self.datetime_display, 0, 1, 1, 2)
+        self.datetime_input = QLineEdit()
+        self.datetime_input.setPlaceholderText("YYYY/MM/DD HH:MM:SS")
+        self.datetime_input.setStyleSheet(StyleManager.get_input_field_style())
+        self.update_datetime_input()  # Establecer valor inicial
+        layout.addWidget(self.datetime_input, 0, 1, 1, 2)
         
         # === CONSTANTE ===
         layout.addWidget(QLabel("Constante"), 1, 0)
-        self.constant_spinbox = QSpinBox()
-        self.constant_spinbox.setRange(1, 100)
-        self.constant_spinbox.setValue(42)
-        self.constant_spinbox.setStyleSheet(StyleManager.get_spinbox_style())
-        layout.addWidget(self.constant_spinbox, 1, 1, 1, 2)
+        self.constant_input = QLineEdit("42.0")  # Valor por defecto temporal
+        self.constant_input.setValidator(QDoubleValidator(0.1, 100.0, 2))  # Decimales de 0.1 a 100.0 con 2 decimales
+        self.constant_input.setPlaceholderText("Ej: 42.5, 10.25")
+        self.constant_input.setStyleSheet(StyleManager.get_input_field_style())
+        layout.addWidget(self.constant_input, 1, 1, 1, 2)
         
         # === TAMAÑO DE FUENTE ===
         layout.addWidget(QLabel("Tamaño de Fuente"), 2, 0)
         self.font_size_slider = QSlider(Qt.Orientation.Horizontal)
         self.font_size_slider.setRange(16, 48)
-        self.font_size_slider.setValue(32)
+        # Usar valor de configuración estándar
+        initial_font_size = CAIRO_OVERLAY_CONFIG['font_size']
+        self.font_size_slider.setValue(initial_font_size)
         self.font_size_slider.setStyleSheet(StyleManager.get_slider_style())
-        self.font_size_label = QLabel("32px")
+        self.font_size_label = QLabel(f"{initial_font_size}px")
         self.font_size_label.setStyleSheet(StyleManager.get_value_label_style())
         self.font_size_slider.valueChanged.connect(
             lambda v: self.font_size_label.setText(f"{v}px")
@@ -75,9 +76,11 @@ class GlobalConfigPanel(QGroupBox):
         layout.addWidget(QLabel("Opacidad del Fondo"), 3, 0)
         self.bg_opacity_slider = QSlider(Qt.Orientation.Horizontal)
         self.bg_opacity_slider.setRange(0, 100)
-        self.bg_opacity_slider.setValue(60)
+        # Usar opacidad de configuración estándar (alpha del bg_color)
+        initial_bg_opacity = int(CAIRO_OVERLAY_CONFIG['bg_color'][3] * 100)
+        self.bg_opacity_slider.setValue(initial_bg_opacity)
         self.bg_opacity_slider.setStyleSheet(StyleManager.get_slider_style())
-        self.bg_opacity_label = QLabel("0.6")
+        self.bg_opacity_label = QLabel(f"{initial_bg_opacity/100:.1f}")
         self.bg_opacity_label.setStyleSheet(StyleManager.get_value_label_style())
         self.bg_opacity_slider.valueChanged.connect(
             lambda v: self.bg_opacity_label.setText(f"{v/100:.1f}")
@@ -106,20 +109,38 @@ class GlobalConfigPanel(QGroupBox):
         
         # === APLICAR ESTILOS A ETIQUETAS ===
         self.apply_label_styles(layout)
+        
+        # Agregar el layout de grid al layout principal
+        main_layout.addLayout(layout)
     
     def setup_color_controls(self, layout):
         """Configurar controles de color"""
         # Color de Fondo
         layout.addWidget(QLabel("Color de Fondo"), 5, 0)
         self.bg_color_button = ColorButton()
-        # Usar color naranja por defecto de constants.py (1.0, 0.65, 0.15) = RGB(255, 166, 38)
-        self.bg_color_button.set_color(QColor(255, 166, 38))  # Naranja por defecto
+        # Usar color de configuración estándar
+        bg_rgba = CAIRO_OVERLAY_CONFIG['bg_color']
+        bg_color = QColor(
+            int(bg_rgba[0] * 255),  # R
+            int(bg_rgba[1] * 255),  # G  
+            int(bg_rgba[2] * 255),  # B
+            int(bg_rgba[3] * 255)   # A
+        )
+        self.bg_color_button.set_color(bg_color)
         layout.addWidget(self.bg_color_button, 5, 1)
         
         # Color de Texto
         layout.addWidget(QLabel("Color de Texto"), 6, 0)
         self.text_color_button = ColorButton()
-        self.text_color_button.set_color(QColor(255, 255, 255))  # #ffffff
+        # Usar color de texto de configuración estándar
+        text_rgba = CAIRO_OVERLAY_CONFIG['text_color']
+        text_color = QColor(
+            int(text_rgba[0] * 255),  # R
+            int(text_rgba[1] * 255),  # G
+            int(text_rgba[2] * 255),  # B
+            int(text_rgba[3] * 255)   # A
+        )
+        self.text_color_button.set_color(text_color)
         layout.addWidget(self.text_color_button, 6, 1)
         
         # Color de Cuadrícula - ✅ USAR COLOR ACTUAL DE CONSTANTS.PY
@@ -138,7 +159,7 @@ class GlobalConfigPanel(QGroupBox):
     
     def setup_styles(self):
         """Aplicar estilos al panel"""
-        self.setStyleSheet(StyleManager.get_group_box_style("🌐 Configuración Global"))
+        self.setStyleSheet("background: transparent; border: none;")
     
     def apply_label_styles(self, layout):
         """Aplicar estilos a las etiquetas"""
@@ -147,11 +168,11 @@ class GlobalConfigPanel(QGroupBox):
             if label_item and isinstance(label_item.widget(), QLabel):
                 label_item.widget().setStyleSheet(StyleManager.get_label_style())
     
-    def update_datetime_display(self):
-        """Actualizar display de fecha y hora en tiempo real"""
+    def update_datetime_input(self):
+        """Establecer fecha y hora actual como valor inicial"""
         current_time = datetime.datetime.now()
         formatted_time = current_time.strftime('%Y/%m/%d %H:%M:%S')
-        self.datetime_display.setText(formatted_time)
+        self.datetime_input.setText(formatted_time)
     
     def get_config(self):
         """Obtener configuración actual del panel"""
@@ -174,7 +195,8 @@ class GlobalConfigPanel(QGroupBox):
             'text_color': self.text_color_button.get_color(),
             'grid_color': self.grid_color_button.get_color(),
             'grid_color_rgba': grid_rgba,  # ✅ RGBA para el renderer
-            'constant': self.constant_spinbox.value()
+            'constant': self._get_valid_constant(),
+            'datetime_custom': self.datetime_input.text()  # ✅ Fecha/hora personalizada
         }
         
         logger.debug(f"Configuración global obtenida: {config}")
@@ -207,12 +229,26 @@ class GlobalConfigPanel(QGroupBox):
             self.grid_color_button.set_color(config['grid_color'])
         
         if 'constant' in config:
-            self.constant_spinbox.setValue(config['constant'])
+            self.constant_input.setText(str(float(config['constant'])))
+        
+        if 'datetime_custom' in config:
+            self.datetime_input.setText(config['datetime_custom'])
         
         logger.debug("Configuración cargada en GlobalConfigPanel")
     
+    def _get_valid_constant(self):
+        """Obtener valor válido de constante (flotante positivo)"""
+        try:
+            value = float(self.constant_input.text())
+            # Asegurar que sea positivo
+            if value <= 0:
+                logger.warning(f"Constante debe ser positiva, usando 42.0 en lugar de {value}")
+                return 42.0
+            return value
+        except (ValueError, TypeError):
+            logger.warning(f"Constante inválida '{self.constant_input.text()}', usando 42.0")
+            return 42.0
+    
     def cleanup(self):
-        """Limpiar recursos del panel"""
-        if self.datetime_timer.isActive():
-            self.datetime_timer.stop()
-        logger.debug("GlobalConfigPanel limpiado") 
+        """Limpiar recursos del panel - actualmente no hay recursos que limpiar"""
+        pass 

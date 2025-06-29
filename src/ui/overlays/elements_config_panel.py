@@ -5,7 +5,7 @@ Maneja toggles para diferentes elementos como grid, fecha, pozos, etc.
 """
 
 from PyQt6.QtWidgets import (
-    QGroupBox, QGridLayout, QLabel, QWidget, QHBoxLayout
+    QGridLayout, QLabel, QWidget, QHBoxLayout, QVBoxLayout
 )
 from PyQt6.QtCore import Qt
 
@@ -16,11 +16,11 @@ from ...utils.constants import DEFAULT_OVERLAY_ELEMENTS, OVERLAY_ELEMENTS_UI_CON
 
 logger = setup_logger("ElementsConfigPanel")
 
-class ElementsConfigPanel(QGroupBox):
+class ElementsConfigPanel(QWidget):
     """Panel de configuración de elementos específicos de overlays"""
     
     def __init__(self, parent=None):
-        super().__init__("Elementos en Pantalla", parent)
+        super().__init__(parent)
         
         # Diccionario de toggles para elementos
         self.element_toggles = {}
@@ -34,11 +34,18 @@ class ElementsConfigPanel(QGroupBox):
     
     def setup_ui(self):
         """Configurar interfaz del panel"""
-        self.setStyleSheet(StyleManager.get_group_box_style("#FF9800"))
+        self.setStyleSheet("background: transparent; border: none;")
         
-        layout = QGridLayout(self)
-        layout.setContentsMargins(15, 20, 15, 15)
-        layout.setSpacing(15)
+        main_layout = QVBoxLayout(self)
+        main_layout.setContentsMargins(0, 5, 0, 0)
+        main_layout.setSpacing(10)
+        
+        # Título eliminado según solicitud del usuario
+        
+        # Layout de grid para los controles
+        layout = QGridLayout()
+        layout.setContentsMargins(15, 10, 15, 15)
+        layout.setSpacing(5)
         
         # Usar configuración centralizada de constants.py
         elements = [(name, key, DEFAULT_OVERLAY_ELEMENTS[key]) 
@@ -51,6 +58,9 @@ class ElementsConfigPanel(QGroupBox):
             
             element_widget = self.create_element_widget(name, key, default_state)
             layout.addWidget(element_widget, row, col)
+        
+        # Agregar el layout de grid al layout principal
+        main_layout.addLayout(layout)
     
     def create_element_widget(self, name, key, default_state=True):
         """Crear widget para un elemento individual"""

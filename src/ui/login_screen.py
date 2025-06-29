@@ -139,27 +139,11 @@ class LoginScreen(QWidget):
         self.password_input.setPlaceholderText("********")
         self.password_input.setEchoMode(QLineEdit.EchoMode.Password)
         
-        # Puerto (opcional)
-        port_label = QLabel("🔌 Puerto:")
-        port_label.setObjectName("fieldLabel")
-        self.port_input = QLineEdit("554")
-        self.port_input.setObjectName("fieldInput")
-        self.port_input.setPlaceholderText("554")
-        
-        # Canal (opcional)
-        channel_label = QLabel("📺 Canal:")
-        channel_label.setObjectName("fieldLabel")
-        self.channel_input = QLineEdit("101")
-        self.channel_input.setObjectName("fieldInput")
-        self.channel_input.setPlaceholderText("101")
-        
         # Agregar campos al layout
         for label, field in [
             (ip_label, self.ip_input),
             (user_label, self.user_input), 
-            (pass_label, self.password_input),
-            (port_label, self.port_input),
-            (channel_label, self.channel_input)
+            (pass_label, self.password_input)
         ]:
             layout.addWidget(label)
             layout.addWidget(field)
@@ -167,7 +151,7 @@ class LoginScreen(QWidget):
         layout.addItem(QSpacerItem(20, 30, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Fixed))
         
         # === BOTÓN CONECTAR ===
-        self.connect_btn = QPushButton("🚀 CONECTAR")
+        self.connect_btn = QPushButton("CONECTAR")
         self.connect_btn.setObjectName("connectButton")
         self.connect_btn.clicked.connect(self.on_connect_clicked)
         layout.addWidget(self.connect_btn)
@@ -182,8 +166,9 @@ class LoginScreen(QWidget):
         ip = self.ip_input.text().strip()
         user = self.user_input.text().strip()
         password = self.password_input.text().strip()
-        port = self.port_input.text().strip() or "554"
-        channel = self.channel_input.text().strip() or "101"
+        # Valores fijos - no editables por el usuario
+        port = "554"
+        channel = "101"
         
         if not ip:
             return
@@ -284,7 +269,6 @@ class LoginScreen(QWidget):
         QPushButton#connectButton:hover {
             background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
                 stop:0 #FFA726, stop:1 #FF9800);
-            transform: translateY(-2px);
         }
         
         QPushButton#connectButton:pressed {

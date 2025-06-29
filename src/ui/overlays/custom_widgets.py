@@ -77,7 +77,7 @@ class ColorButton(QPushButton):
         self.setStyleSheet(f"""
         QPushButton {{
             background-color: {rgb};
-            border: 2px solid #ffffff;
+            border: 2px solid #000000;
             border-radius: 6px;
         }}
         QPushButton:hover {{

@@ -16,8 +16,7 @@ class StyleManager:
         """Estilo principal del diálogo"""
         return """
         QDialog {
-            background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
-                stop:0 #2c3e50, stop:1 #34495e);
+            background: rgba(45, 45, 45, 150);
         }
         """
     
@@ -44,7 +43,7 @@ class StyleManager:
     
     @staticmethod
     def get_slider_style():
-        """Estilo para sliders"""
+        """Estilo para sliders con handle circular"""
         return """
         QSlider::groove:horizontal {
             background: #555555;
@@ -54,14 +53,20 @@ class StyleManager:
         QSlider::handle:horizontal {
             background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
                 stop:0 #FFA726, stop:1 #FF9800);
-            border: 2px solid #FF9800;
-            width: 16px;
+            border: 2px solid #FFFFFF;
+            width: 12px;
+            height: 12px;
             margin: -6px 0;
             border-radius: 8px;
         }
         QSlider::handle:horizontal:hover {
             background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
                 stop:0 #FFB74D, stop:1 #FFA726);
+            border: 2px solid #FFFFFF;
+            width: 12px;
+            height: 12px;
+            margin: -6px 0;
+            border-radius: 8px;
         }
         QSlider::sub-page:horizontal {
             background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
@@ -84,6 +89,29 @@ class StyleManager:
         }
         QSpinBox:focus {
             border: 2px solid #FFA726;
+        }
+        """
+    
+    @staticmethod
+    def get_input_field_style():
+        """Estilo para campos de entrada QLineEdit"""
+        return """
+        QLineEdit {
+            background: #34495e;
+            color: white;
+            padding: 8px;
+            border: 2px solid #555555;
+            border-radius: 6px;
+            font-weight: bold;
+            font-size: 12px;
+            min-height: 20px;
+        }
+        QLineEdit:focus {
+            border: 2px solid #FFA726;
+            background: #2c3e50;
+        }
+        QLineEdit:hover {
+            border: 2px solid #7f8c8d;
         }
         """
     
@@ -118,22 +146,7 @@ class StyleManager:
         return """
         QLabel {
             background: #34495e;
-            color: #FFA726;
-            padding: 8px;
-            border-radius: 6px;
-            font-family: 'Courier New', monospace;
-            font-weight: bold;
-            font-size: 12px;
-        }
-        """
-    
-    @staticmethod
-    def get_datetime_display_style():
-        """Estilo para display dinámico de fecha/hora"""
-        return """
-        QLabel {
-            background: #34495e;
-            color: #FFA726;
+            color: white;
             padding: 8px;
             border-radius: 6px;
             font-family: 'Courier New', monospace;
@@ -147,7 +160,7 @@ class StyleManager:
         """Estilo para labels de valores (sliders)"""
         return """
         QLabel {
-            color: #FFA726; 
+            color: white; 
             font-weight: bold;
         }
         """

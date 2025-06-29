@@ -117,7 +117,6 @@ class ControlPanel(QWidget):
                 stop:0 rgba(255, 167, 38, 250), 
                 stop:1 rgba(255, 152, 0, 250));
             border: 3px solid rgba(255, 255, 255, 180);
-            transform: scale(1.05);
         }
         QPushButton#plusButton:pressed {
             background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
@@ -164,7 +163,6 @@ class ControlPanel(QWidget):
                 stop:0 rgba(255, 167, 38, 220), 
                 stop:1 rgba(255, 152, 0, 220));
             border: 2px solid rgba(255, 255, 255, 150);
-            transform: scale(1.1);
         }
         QPushButton#settingsButton:pressed {
             background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
@@ -194,14 +192,12 @@ class ControlPanel(QWidget):
                 stop:0 rgba(90, 90, 90, 250), 
                 stop:1 rgba(70, 70, 70, 250));
             border: 2px solid rgba(255, 255, 255, 120);
-            transform: scale(1.05);
         }
         QPushButton:pressed {
             background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
                 stop:0 rgba(40, 40, 40, 200), 
                 stop:1 rgba(20, 20, 20, 200));
             border: 2px solid rgba(255, 255, 255, 160);
-            transform: scale(0.95);
         }
         """
     

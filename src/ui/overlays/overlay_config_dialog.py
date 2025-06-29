@@ -5,7 +5,7 @@ Coordinador principal que usa paneles especializados
 """
 
 from PyQt6.QtWidgets import (
-    QDialog, QVBoxLayout, QHBoxLayout, QPushButton, QScrollArea, QWidget
+    QDialog, QVBoxLayout, QHBoxLayout, QPushButton, QWidget
 )
 from PyQt6.QtCore import pyqtSignal
 
@@ -30,24 +30,39 @@ class OverlayConfigDialog(QDialog):
         self.global_panel = None
         self.elements_panel = None
         
-        self.setup_ui()
-        self.load_current_config()
-        logger.info("OverlayConfigDialog modularizado inicializado")
+        try:
+            self.setup_ui()
+            self.load_current_config()
+            logger.info("OverlayConfigDialog modularizado inicializado")
+        except Exception as e:
+            logger.error(f"Error inicializando OverlayConfigDialog: {e}")
+            # Asegurar que los paneles existan aunque sea con valores por defecto
+            if not self.global_panel:
+                logger.warning("Creando GlobalConfigPanel de emergencia")
+                self.global_panel = GlobalConfigPanel()
+            if not self.elements_panel:
+                logger.warning("Creando ElementsConfigPanel de emergencia")
+                self.elements_panel = ElementsConfigPanel()
     
     def setup_ui(self):
         """Configurar interfaz del diálogo"""
-        self.setWindowTitle("Configuración de Overlays")
+        self.setWindowTitle("Configuración")
         self.setModal(True)
-        self.setFixedSize(520, 750)
+        self.setFixedSize(450, 650)
         
         # Layout principal
         main_layout = QVBoxLayout(self)
         main_layout.setContentsMargins(15, 15, 15, 15)
         main_layout.setSpacing(10)
         
-        # === ÁREA DE SCROLL CON PANELES ===
-        scroll_area = self.create_scroll_area()
-        main_layout.addWidget(scroll_area)
+        # === PANELES DIRECTAMENTE ===
+        # Panel de configuración global
+        self.global_panel = GlobalConfigPanel()
+        main_layout.addWidget(self.global_panel)
+        
+        # Panel de configuración de elementos
+        self.elements_panel = ElementsConfigPanel()
+        main_layout.addWidget(self.elements_panel)
         
         # === BOTONES ===
         buttons_layout = self.create_buttons_layout()
@@ -56,25 +71,7 @@ class OverlayConfigDialog(QDialog):
         # Aplicar estilo general
         self.setStyleSheet(StyleManager.get_dialog_style())
     
-    def create_scroll_area(self):
-        """Crear área de scroll con paneles"""
-        scroll_area = QScrollArea()
-        scroll_widget = QWidget()
-        scroll_layout = QVBoxLayout(scroll_widget)
-        
-        # === PANEL DE CONFIGURACIÓN GLOBAL ===
-        self.global_panel = GlobalConfigPanel()
-        scroll_layout.addWidget(self.global_panel)
-        
-        # === PANEL DE CONFIGURACIÓN DE ELEMENTOS ===
-        self.elements_panel = ElementsConfigPanel()
-        scroll_layout.addWidget(self.elements_panel)
-        
-        scroll_area.setWidget(scroll_widget)
-        scroll_area.setWidgetResizable(True)
-        scroll_area.setStyleSheet(StyleManager.get_scroll_area_style())
-        
-        return scroll_area
+    # Método eliminado: ya no necesitamos scroll area
     
     def create_buttons_layout(self):
         """Crear layout de botones"""
@@ -82,14 +79,14 @@ class OverlayConfigDialog(QDialog):
         buttons_layout.setSpacing(15)
         
         # Botón Cancelar
-        cancel_button = QPushButton("❌ Cancelar")
-        cancel_button.setFixedSize(120, 40)
+        cancel_button = QPushButton("Cancelar")
+        cancel_button.setFixedSize(140, 40)
         cancel_button.clicked.connect(self.reject)
         cancel_button.setStyleSheet(StyleManager.get_button_style())
         
         # Botón Aplicar
-        apply_button = QPushButton("✅ Aplicar Cambios")
-        apply_button.setFixedSize(150, 40)
+        apply_button = QPushButton("Aplicar")
+        apply_button.setFixedSize(140, 40)
         apply_button.clicked.connect(self.apply_config)
         apply_button.setStyleSheet(StyleManager.get_apply_button_style())
         
