@@ -11,6 +11,8 @@ from gi.repository import Gst, GLib, GstVideo
 
 from ...utils.constants import GSTREAMER_PIPELINE_TEMPLATE
 from ...utils.logger import setup_logger
+from .pyav_recorder import PyAVRecorder
+from .gpu_recorder import GPURecorder
 
 logger = setup_logger("GStreamerManager")
 
@@ -26,6 +28,16 @@ class GStreamerManager:
         self.overlay_manager = None
         self.metrics_integration = None
         
+        # Inicializar recorders
+        self.pyav_recorder = PyAVRecorder()
+        self.gpu_recorder = GPURecorder()
+        self.recording_sink = None  # appsink para PyAV
+        
+        # Seleccionar recorder por defecto - FORZAR CPU por confiabilidad
+        self.use_gpu_recorder = False  # Forzar CPU por defecto
+        logger.info("🎮 Usando recorder: CPU (PyAV) - Configuración por defecto para máxima confiabilidad")
+        logger.info("💡 GPU recording disponible pero deshabilitado por defecto")
+        
     def set_managers(self, overlay_manager, metrics_integration):
         """Conectar con otros managers"""
         self.overlay_manager = overlay_manager
@@ -40,12 +52,7 @@ class GStreamerManager:
         logger.info(f"Datos procesados en {pad.get_parent_element().get_name()}")
         return Gst.PadProbeReturn.OK
 
-    def setup_recording_probes(self, pipeline):
-        elements = ['queue', 'videoconvert', 'x264enc', 'mp4mux', 'filesink']
-        for element_name in elements:
-            element = pipeline.get_by_name(element_name)
-            if element:
-                self.add_probe_to_element(element, "src")
+
 
     def start_stream(self, rtsp_url):
         """Iniciar stream con pipeline optimizado"""
@@ -75,8 +82,8 @@ class GStreamerManager:
             # Configurar probes para métricas
             self._configure_metrics_probes()
             
-            # Configurar probes para grabación
-            self.setup_recording_probes(self.pipeline)
+            # Configurar appsink para PyAV
+            self._configure_recording_sink()
             
             # Iniciar reproducción
             ret = self.pipeline.set_state(Gst.State.PLAYING)
@@ -222,4 +229,160 @@ class GStreamerManager:
             logger.info("Stream iniciado!")
             
         elif msg_type == Gst.MessageType.ASYNC_DONE:
-            logger.info("Pipeline listo!") 
+            logger.info("Pipeline listo!")
+
+    def _configure_recording_sink(self):
+        """Configurar appsink para PyAV"""
+        self.recording_sink = self.pipeline.get_by_name("recording_sink")
+        if self.recording_sink:
+            # Configurar appsink para PyAV
+            self.recording_sink.set_property('emit-signals', True)
+            self.recording_sink.set_property('sync', False)
+            self.recording_sink.set_property('drop', True)
+            self.recording_sink.set_property('max-buffers', 1)
+            
+            # Conectar callback para nuevos frames
+            self.recording_sink.connect('new-sample', self._on_new_frame)
+            
+            logger.info("✅ appsink para PyAV configurado")
+        else:
+            logger.error("No se pudo obtener recording_sink del pipeline")
+    
+    def _on_new_frame(self, sink):
+        """Callback para nuevos frames del appsink"""
+        try:
+            # Obtener sample del appsink
+            sample = sink.emit('pull-sample')
+            if not sample:
+                return Gst.FlowReturn.ERROR
+            
+            # Obtener buffer y caps
+            buffer = sample.get_buffer()
+            caps = sample.get_caps()
+            
+            # Extraer información del frame
+            structure = caps.get_structure(0)
+            width = structure.get_int('width')[1]
+            height = structure.get_int('height')[1]
+            
+            # Mapear buffer para leer datos
+            success, map_info = buffer.map(Gst.MapFlags.READ)
+            if not success:
+                return Gst.FlowReturn.ERROR
+            
+            # Enviar frame al recorder activo
+            frame_data = map_info.data
+            if self.use_gpu_recorder:
+                self.gpu_recorder.add_frame(frame_data, width, height)
+            else:
+                self.pyav_recorder.add_frame(frame_data, width, height)
+            
+            # Limpiar
+            buffer.unmap(map_info)
+            
+            return Gst.FlowReturn.OK
+            
+        except Exception as e:
+            logger.error(f"❌ Error procesando frame: {e}")
+            return Gst.FlowReturn.ERROR
+    
+    def _check_gpu_support(self):
+        """Verificar soporte para grabación GPU"""
+        try:
+            # Verificar si el encoder seleccionado es de GPU
+            encoder_info = self.gpu_recorder.get_encoder_info()
+            is_gpu_encoder = encoder_info['is_gpu']
+            
+            logger.info(f"🔍 Encoder detectado: {encoder_info['encoder']} ({'GPU' if is_gpu_encoder else 'CPU'})")
+            return is_gpu_encoder
+        except Exception as e:
+            logger.warning(f"⚠️ Error verificando soporte GPU: {e}")
+            return False
+    
+    def set_recorder_type(self, use_gpu=None):
+        """Cambiar tipo de recorder"""
+        if use_gpu is None:
+            use_gpu = self._check_gpu_support()
+        
+        self.use_gpu_recorder = use_gpu
+        
+        if use_gpu:
+            encoder_info = self.gpu_recorder.get_encoder_info()
+            recorder_type = f"GPU (FFmpeg+{encoder_info['encoder']})"
+            logger.info(f"🔄 Cambiando a recorder: {recorder_type}")
+            logger.warning("⚠️ GPU recording habilitado manualmente - monitorear estabilidad")
+        else:
+            logger.info("🔄 Cambiando a recorder: CPU (PyAV)")
+            logger.info("✅ CPU recording - máxima confiabilidad garantizada")
+    
+    def enable_gpu_recording(self):
+        """Habilitar GPU recording manualmente (para pruebas)"""
+        logger.info("🧪 Habilitando GPU recording para pruebas...")
+        gpu_available = self._check_gpu_support()
+        
+        if gpu_available:
+            self.use_gpu_recorder = True
+            encoder_info = self.gpu_recorder.get_encoder_info()
+            logger.info(f"✅ GPU recording habilitado: {encoder_info['encoder']}")
+            logger.warning("⚠️ Monitorear archivos de video por posible corrupción")
+            return True
+        else:
+            logger.error("❌ No hay encoders GPU funcionales disponibles")
+            return False
+    
+    def disable_gpu_recording(self):
+        """Deshabilitar GPU recording y volver a CPU"""
+        logger.info("🔄 Deshabilitando GPU recording...")
+        self.use_gpu_recorder = False
+        logger.info("✅ Volviendo a CPU recording - máxima confiabilidad")
+    
+    def start_recording(self, filename):
+        """Iniciar grabación con el recorder seleccionado"""
+        if self.use_gpu_recorder:
+            encoder_info = self.gpu_recorder.get_encoder_info()
+            logger.info(f"🎮 Iniciando grabación con GPU (FFmpeg+{encoder_info['encoder']})")
+            return self.gpu_recorder.start_recording(filename)
+        else:
+            logger.info("💻 Iniciando grabación con CPU (PyAV)")
+            return self.pyav_recorder.start_recording(filename)
+    
+    def stop_recording(self):
+        """Detener grabación"""
+        if self.use_gpu_recorder:
+            return self.gpu_recorder.stop_recording()
+        else:
+            return self.pyav_recorder.stop_recording()
+    
+    def is_recording(self):
+        """Verificar si está grabando"""
+        if self.use_gpu_recorder:
+            return self.gpu_recorder.is_recording
+        else:
+            return self.pyav_recorder.is_recording
+    
+    def get_recorder_status(self):
+        """Obtener información completa del recorder actual"""
+        if self.use_gpu_recorder:
+            encoder_info = self.gpu_recorder.get_encoder_info()
+            return {
+                'type': 'GPU',
+                'recorder': 'FFmpeg',
+                'encoder': encoder_info['encoder'],
+                'is_gpu': encoder_info['is_gpu'],
+                'bitrate': encoder_info['bitrate'],
+                'resolution': encoder_info['resolution'],
+                'fps': encoder_info['fps'],
+                'status': 'Experimental - Monitorear estabilidad'
+            }
+        else:
+            return {
+                'type': 'CPU',
+                'recorder': 'PyAV',
+                'encoder': 'libx264',
+                'is_gpu': False,
+                'bitrate': '2M',  # Default PyAV bitrate
+                'resolution': 'Auto',
+                'fps': 'Auto',
+                'status': 'Confiable - Producción'
+            }
+    
