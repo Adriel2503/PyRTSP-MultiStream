@@ -31,6 +31,22 @@ class GStreamerManager:
         self.overlay_manager = overlay_manager
         self.metrics_integration = metrics_integration
     
+    def add_probe_to_element(self, element, pad_name):
+        pad = element.get_static_pad(pad_name)
+        if pad:
+            pad.add_probe(Gst.PadProbeType.BUFFER, self.probe_callback)
+
+    def probe_callback(self, pad, info):
+        logger.info(f"Datos procesados en {pad.get_parent_element().get_name()}")
+        return Gst.PadProbeReturn.OK
+
+    def setup_recording_probes(self, pipeline):
+        elements = ['queue', 'videoconvert', 'x264enc', 'mp4mux', 'filesink']
+        for element_name in elements:
+            element = pipeline.get_by_name(element_name)
+            if element:
+                self.add_probe_to_element(element, "src")
+
     def start_stream(self, rtsp_url):
         """Iniciar stream con pipeline optimizado"""
         pipeline_str = GSTREAMER_PIPELINE_TEMPLATE.format(url=rtsp_url)
@@ -58,6 +74,9 @@ class GStreamerManager:
             
             # Configurar probes para métricas
             self._configure_metrics_probes()
+            
+            # Configurar probes para grabación
+            self.setup_recording_probes(self.pipeline)
             
             # Iniciar reproducción
             ret = self.pipeline.set_state(Gst.State.PLAYING)

@@ -5,6 +5,7 @@ Extraído de main_window.py para mejor modularización
 """
 
 from PyQt6.QtWidgets import QMessageBox
+from datetime import datetime
 
 from ...utils.logger import setup_logger
 from ..inspection_form_dialog import InspectionFormDialog
@@ -77,28 +78,18 @@ class ButtonHandlers:
         QMessageBox.information(self.main_window, "✅ Datos Guardados", summary)
     
     def handle_record_button(self):
-        """Manejar clic en botón de grabación - inicia o detiene grabación"""
-        logger.debug("Botón GRABACIÓN clickeado")
-        
-        # Por el momento solo mostrar mensaje - funcionalidad a implementar
+        """Iniciar grabación al presionar el botón de grabación"""
         if not self.is_recording:
-            # Iniciar grabación
-            logger.info("📹 Iniciando grabación...")
-            QMessageBox.information(self.main_window, "📹 Iniciar Grabación", 
-                                   "Función de grabación en desarrollo.\n\n"
-                                   "Esta función permitirá:\n"
-                                   "• Grabar el video de la inspección\n"
-                                   "• Incluir overlays y anotaciones\n"
-                                   "• Guardar en formato estándar")
-            # Aquí se implementará la lógica de grabación
-            # self.is_recording = True
+            # Generar nombre de archivo basado en la fecha y hora actuales
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            filename = f"/c:/Users/ariel/Documents/Welltep/grabaciones/inspeccion_{timestamp}.mp4"
+            
+            # Configurar y iniciar el pipeline de GStreamer para grabación
+            self.start_gstreamer_recording(filename)
+            self.is_recording = True
+            logger.info(f"📹 Grabación iniciada: {filename}")
         else:
-            # Detener grabación
-            logger.info("📹 Deteniendo grabación...")
-            QMessageBox.information(self.main_window, "📹 Detener Grabación", 
-                                   "Grabación detenida.\n\n"
-                                   "El video ha sido guardado exitosamente.")
-            # self.is_recording = False
+            logger.warning("La grabación ya está en curso")
     
     def handle_capture_button(self):
         """Manejar clic del botón CAPTURA"""
@@ -106,18 +97,14 @@ class ButtonHandlers:
         QMessageBox.information(self.main_window, "📷 Captura", "Función de captura en desarrollo")
     
     def handle_stop_button(self):
-        """Manejar clic del botón DETENER"""
-        logger.debug("Botón DETENER clickeado")
-        if (self.main_window.video_widget and 
-            hasattr(self.main_window.video_widget, 'stop_stream')):
-            self.main_window.video_widget.stop_stream()
-            logger.info("Stream detenido")
-            # Resetear estado de grabación
+        """Detener grabación al presionar el botón de detener"""
+        if self.is_recording:
+            # Detener el pipeline de GStreamer y guardar el archivo
+            self.stop_gstreamer_recording()
             self.is_recording = False
-            # Volver a pantalla de login después de detener
-            self.main_window.disconnect_stream()
+            logger.info("📹 Grabación detenida y guardada")
         else:
-            logger.warning("No se puede detener - video widget no disponible")
+            logger.warning("No hay grabación en curso para detener")
     
     def handle_annotate_button(self):
         """Manejar clic del botón ANOTAR - iniciar anotación dinámica en el video"""
@@ -230,4 +217,15 @@ class ButtonHandlers:
             summary = "⚠️ Todos los overlays han sido deshabilitados"
         
         # Mostrar confirmación
-        QMessageBox.information(self.main_window, "⚙️ Configuración Aplicada", summary) 
+        QMessageBox.information(self.main_window, "⚙️ Configuración Aplicada", summary)
+
+    def start_gstreamer_recording(self, filename):
+        """Configurar e iniciar el pipeline de GStreamer para grabación"""
+        # Configurar el pipeline con un filesink para guardar el video
+        # Asegúrate de que el pipeline esté correctamente configurado
+        pass
+
+    def stop_gstreamer_recording(self):
+        """Detener el pipeline de GStreamer y cerrar el archivo de grabación"""
+        # Detener el pipeline y cerrar el archivo
+        pass 

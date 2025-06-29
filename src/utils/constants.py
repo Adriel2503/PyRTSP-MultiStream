@@ -24,7 +24,9 @@ rtspsrc location={url} protocols=tcp latency=0 name=rtspsrc
 ! cairooverlay name=cairo_distancia
 ! cairooverlay name=cairo_pozo_fin
 ! cairooverlay name=cairo_annotation
-! d3d11videosink name=videosink
+! tee name=t
+t. ! queue ! d3d11videosink name=videosink
+t. ! queue ! videoconvert ! x264enc ! mp4mux ! filesink location="C:/Users/ariel/Documents/Welltep/grabaciones/video.mp4" 
 """
 
 # === CONFIGURACIÓN DE OVERLAYS NATIVOS ===
