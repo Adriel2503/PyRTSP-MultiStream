@@ -4,9 +4,9 @@ Constantes globales del proyecto PyRTSP-FastStream
 """
 
 # === CONFIGURACIÓN DE APLICACIÓN ===
-APP_NAME = "PyRTSP-FastStream"
+APP_NAME = "IRIS - WELLTEP"
 APP_VERSION = "1.0.0"
-APP_TITLE = "🚀 Cámara IP - GStreamer + PyQt6 (D3D11 Overlay)"
+APP_TITLE = "IRIS PIPE INSPECTION SOFTWARE"
 
 # === CONFIGURACIÓN DE GSTREAMER ===
 DEFAULT_RTSP_URL = "rtsp://admin:Prototipo@192.168.18.5:554/Streaming/Channels/101"

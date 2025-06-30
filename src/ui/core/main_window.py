@@ -46,7 +46,7 @@ class MainWindow(QMainWindow):
         
     def setup_ui(self):
         """Configurar interfaz de usuario básica"""
-        self.setWindowTitle("🚀 Welltep RTSP Viewer - Sistema Profesional")
+        self.setWindowTitle("IRIS PIPE INSPECTION SOFTWARE")
         self.setGeometry(100, 100, 1200, 700)
         self.setMinimumSize(800, 600)
         
