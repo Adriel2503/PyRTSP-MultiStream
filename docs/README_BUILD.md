@@ -22,15 +22,22 @@ pip install -r requirements.txt
 
 ## 🛠️ Métodos de Build
 
-### Método 1: Automático (Recomendado)
-Simplemente ejecuta el archivo batch:
+### Método 1: Instalador Completo (⭐ RECOMENDADO)
+Genera ejecutable + instalador + versión portable:
+```bash
+# En Windows - Doble clic o ejecutar:
+build_installer.bat
+
+# O manualmente:
+python docs/build_installer.py
+```
+
+### Método 2: Solo Ejecutable (Método Original)
 ```bash
 # En Windows
 build_exe.bat
-```
 
-### Método 2: Script Python
-```bash
+# O manualmente:
 python build_exe.py
 ```
 
@@ -142,11 +149,54 @@ Si encuentras problemas:
 3. Prueba con versiones específicas de las librerías
 4. Consulta la documentación de PyInstaller
 
+## 🎯 ¿Qué Opción de Distribución Elegir?
+
+### 📦 **Instalador .exe (RECOMENDADO)**
+```
+✅ Ventajas:
+- Instalación profesional
+- Gestiona dependencias automáticamente
+- Fácil actualización
+- Desinstalación limpia
+- Mejor experiencia de usuario
+
+❌ Desventajas:
+- Requiere Inno Setup para generar
+- Más complejo de crear
+```
+
+### 💼 **Ejecutable único (.exe)**
+```
+✅ Ventajas:
+- Un solo archivo
+- Fácil de distribuir
+- No requiere instalación
+
+❌ Desventajas:
+- Más lento al iniciar
+- Archivo muy grande (~200-400MB)
+- Usuario debe instalar GStreamer manualmente
+```
+
+### 📁 **Versión Portable (.zip)**
+```
+✅ Ventajas:
+- No requiere instalación
+- Funciona desde cualquier carpeta
+- Fácil de crear
+
+❌ Desventajas:
+- Usuario debe instalar GStreamer
+- Múltiples archivos
+- Menos profesional
+```
+
 ## 📚 Referencias
 
 - [PyInstaller Documentation](https://pyinstaller.readthedocs.io/)
 - [GStreamer Windows Installation](https://gstreamer.freedesktop.org/documentation/installing/on-windows.html)
 - [PyQt6 Documentation](https://doc.qt.io/qtforpython/)
+- [Inno Setup](https://jrsoftware.org/isinfo.php)
 
 ---
 

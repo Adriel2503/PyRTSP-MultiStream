@@ -33,6 +33,9 @@ class GStreamerManager:
         self.gpu_recorder = GPURecorder()
         self.recording_sink = None  # appsink para PyAV
         
+        # Cache para capturas de pantalla
+        self.latest_frame_cache = None  # (frame_data, width, height, timestamp)
+        
         # Seleccionar recorder por defecto - FORZAR CPU por confiabilidad
         self.use_gpu_recorder = False  # Forzar CPU por defecto
         logger.info("🎮 Usando recorder: CPU (PyAV) - Configuración por defecto para máxima confiabilidad")
@@ -232,14 +235,14 @@ class GStreamerManager:
             logger.info("Pipeline listo!")
 
     def _configure_recording_sink(self):
-        """Configurar appsink para PyAV"""
+        """Configurar appsink para PyAV y capturas"""
         self.recording_sink = self.pipeline.get_by_name("recording_sink")
         if self.recording_sink:
-            # Configurar appsink para PyAV
+            # Configurar appsink para grabación Y capturas ocasionales
             self.recording_sink.set_property('emit-signals', True)
             self.recording_sink.set_property('sync', False)
-            self.recording_sink.set_property('drop', True)
-            self.recording_sink.set_property('max-buffers', 1)
+            self.recording_sink.set_property('drop', False)  # No descartar frames para capturas
+            self.recording_sink.set_property('max-buffers', 5)  # Más buffers para capturas
             
             # Conectar callback para nuevos frames
             self.recording_sink.connect('new-sample', self._on_new_frame)
@@ -276,6 +279,11 @@ class GStreamerManager:
                 self.gpu_recorder.add_frame(frame_data, width, height)
             else:
                 self.pyav_recorder.add_frame(frame_data, width, height)
+            
+            # CACHE para capturas: Guardar copia del último frame
+            import time
+            frame_copy = bytes(frame_data)  # Crear copia independiente
+            self.latest_frame_cache = (frame_copy, width, height, time.time())
             
             # Limpiar
             buffer.unmap(map_info)
@@ -385,4 +393,30 @@ class GStreamerManager:
                 'fps': 'Auto',
                 'status': 'Confiable - Producción'
             }
+
+    def get_latest_frame_for_capture(self):
+        """Captura INSTANTÁNEA desde cache - Sin competencia con grabación"""
+        try:
+            # Verificar si hay frame en cache
+            if not self.latest_frame_cache:
+                logger.warning("⚠️ No hay frames en cache para captura")
+                return None
+            
+            frame_data, width, height, timestamp = self.latest_frame_cache
+            
+            # Verificar que el frame no sea muy antiguo (máximo 5 segundos)
+            import time
+            age = time.time() - timestamp
+            if age > 5.0:
+                logger.warning(f"⚠️ Frame en cache muy antiguo ({age:.1f}s) - puede estar desactualizado")
+                # Pero lo usamos de todas formas
+            
+            logger.info(f"✅ Frame capturado desde cache: {width}x{height}, {len(frame_data)} bytes (edad: {age:.2f}s)")
+            
+            # Retornar copia del frame cacheado
+            return (frame_data, width, height)
+            
+        except Exception as e:
+            logger.error(f"❌ Error capturando frame desde cache: {e}")
+            return None
     

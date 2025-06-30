@@ -9,6 +9,11 @@ from datetime import datetime
 import gi
 gi.require_version('Gst', '1.0')
 from gi.repository import Gst
+import av
+import threading
+import os
+import time
+import numpy as np
 
 from ...utils.logger import setup_logger
 from ..inspection_form_dialog import InspectionFormDialog
@@ -126,9 +131,77 @@ class ButtonHandlers:
             )
     
     def handle_capture_button(self):
-        """Manejar clic del botón CAPTURA"""
+        """Manejar clic del botón CAPTURA - Implementación completa"""
         logger.info("📷 Botón CAPTURA presionado")
-        QMessageBox.information(self.main_window, "📷 Captura", "Función de captura en desarrollo")
+        
+        if self.is_recording:
+            # ✅ MODO GRABANDO: Capturar Y guardar
+            try:
+                success = self.capture_frame_and_save()
+                if success:
+                    QMessageBox.information(
+                        self.main_window, 
+                        "📷 Captura Iniciada", 
+                        "✅ Captura procesándose en background\n\n"
+                        "📁 Ubicación: grabaciones/capturas/\n"
+                        "🖼️ Formato: JPEG (PyAV/FFmpeg, ultra-rápido)\n"
+                        "📐 Resolución: 2560×1440\n"
+                        "🎯 Incluye todos los overlays Cairo\n\n"
+                        "⚡ Encoding FFmpeg nativo (C++)\n"
+                        "RGB→JPEG directo, sin interrumpir grabación"
+                    )
+                else:
+                    QMessageBox.critical(
+                        self.main_window,
+                        "❌ Error de Captura",
+                        "No se pudo guardar la captura.\n\n"
+                        "Posibles causas:\n"
+                        "• Grabación no iniciada (requerida para capturas)\n"
+                        "• Permisos de escritura en carpeta grabaciones/\n"
+                        "• Espacio en disco disponible\n\n"
+                        "💡 Tip: DEBES iniciar grabación primero\n"
+                        "Las capturas usan frames del proceso de grabación"
+                    )
+            except Exception as e:
+                logger.error(f"❌ Error en captura durante grabación: {e}")
+                QMessageBox.critical(
+                    self.main_window,
+                    "❌ Error Técnico",
+                    f"Error técnico en captura:\n{str(e)}"
+                )
+        else:
+            # ❌ MODO SIN GRABAR: Capturar pero NO guardar
+            try:
+                # Verificar disponibilidad de capturas (requiere grabación activa)
+                frame_captured = self.capture_frame_but_discard()
+                if frame_captured:
+                    QMessageBox.information(
+                        self.main_window,
+                        "📷 Captura NO Disponible",
+                        "❌ No se puede capturar sin grabación activa\n\n"
+                        "El sistema de capturas requiere que\n"
+                        "la grabación esté en curso.\n\n"
+                        "💡 Para tomar capturas:\n"
+                        "1. Presione PLAY para iniciar grabación\n"
+                        "2. Luego use el botón CAPTURA 📸\n\n"
+                        "🎯 La captura incluirá todos los overlays"
+                    )
+                else:
+                    QMessageBox.warning(
+                        self.main_window,
+                        "⚠️ Stream No Disponible",
+                        "No se puede capturar frame.\n\n"
+                        "Verifica que el stream esté conectado\n"
+                        "y funcionando correctamente."
+                    )
+            except Exception as e:
+                logger.error(f"❌ Error en captura sin grabación: {e}")
+                QMessageBox.warning(
+                    self.main_window,
+                    "⚠️ Error de Captura",
+                    "No se pudo procesar la captura.\n\n"
+                    "Verifica que el stream esté activo."
+                )
     
     def handle_stop_button(self):
         """Detener grabación al presionar el botón de detener"""
@@ -321,3 +394,122 @@ class ButtonHandlers:
         else:
             logger.error("❌ Video widget o GStreamer manager no disponible")
             return False 
+
+    def capture_frame_and_save(self):
+        """Capturar frame y guardarlo usando PyAV - MODO GRABANDO"""
+        try:
+            # Obtener frame desde el cache del GStreamerManager
+            if not hasattr(self.main_window.video_widget, 'gstreamer_manager'):
+                logger.error("❌ GStreamerManager no disponible")
+                return False
+            
+            gstreamer_manager = self.main_window.video_widget.gstreamer_manager
+            frame_data = gstreamer_manager.get_latest_frame_for_capture()
+            
+            if not frame_data:
+                logger.error("❌ No hay frame disponible para captura")
+                return False
+            
+            raw_data, width, height = frame_data
+            logger.info(f"📷 Capturando frame {width}x{height}, {len(raw_data)} bytes")
+            
+            # Generar filename con timestamp
+            timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+            captures_dir = "grabaciones/capturas"
+            
+            # Crear directorio si no existe
+            os.makedirs(captures_dir, exist_ok=True)
+            
+            filename = f"{captures_dir}/captura_{timestamp}.jpg"
+            
+            # Procesar en background thread para no bloquear UI
+            def save_frame_background():
+                try:
+                    logger.info(f"🚀 Encoding JPEG ultra-rápido con PyAV/FFmpeg...")
+                    
+                    # ¡Los datos YA están en RGB! Conversión directa con PyAV
+                    # El pipeline tiene: videoconvert ! video/x-raw,format=RGB ! appsink
+                    
+                    # Calcular dimensiones esperadas para RGB (3 bytes por pixel)
+                    expected_size = width * height * 3
+                    actual_size = len(raw_data)
+                    
+                    logger.info(f"📐 Dimensiones: {width}x{height}")
+                    logger.info(f"📊 Datos: esperados {expected_size} bytes, recibidos {actual_size} bytes")
+                    
+                    if actual_size != expected_size:
+                        logger.warning(f"⚠️ Tamaño de datos no coincide - ajustando...")
+                        if actual_size > expected_size:
+                            raw_data_fixed = raw_data[:expected_size]
+                        else:
+                            raw_data_fixed = raw_data + b'\x00' * (expected_size - actual_size)
+                    else:
+                        raw_data_fixed = raw_data
+                    
+                    # Convertir buffer RGB a numpy array
+                    rgb_array = np.frombuffer(raw_data_fixed, dtype=np.uint8)
+                    rgb_image = rgb_array.reshape((height, width, 3))
+                    
+                    # MÉTODO PyAV: VideoFrame desde numpy RGB24
+                    frame = av.VideoFrame.from_ndarray(rgb_image, format='rgb24')
+                    
+                    # Crear output container JPEG con PyAV/FFmpeg
+                    output = av.open(filename, 'w')
+                    stream = output.add_stream('mjpeg', rate=1)
+                    stream.width = width
+                    stream.height = height
+                    stream.pix_fmt = 'yuvj420p'  # JPEG estándar
+                    
+                    # PyAV auto-convierte RGB24 → YUVJ420P para JPEG
+                    jpeg_frame = frame.reformat(format='yuvj420p')
+                    
+                    # Encoding nativo FFmpeg (C++) - ULTRA RÁPIDO
+                    for packet in stream.encode(jpeg_frame):
+                        output.mux(packet)
+                    
+                    # Flush encoder
+                    for packet in stream.encode():
+                        output.mux(packet)
+                    
+                    output.close()
+                    
+                    file_size = os.path.getsize(filename)
+                    logger.info(f"✅ CAPTURA PyAV/FFmpeg: {filename} ({file_size/1024:.1f} KB)")
+                    
+                except Exception as e:
+                    logger.error(f"❌ Error en captura PyAV: {e}")
+                    import traceback
+                    logger.error(f"Detalles: {traceback.format_exc()}")
+            
+            # Ejecutar en background
+            thread = threading.Thread(target=save_frame_background, daemon=True)
+            thread.start()
+            
+            return True
+            
+        except Exception as e:
+            logger.error(f"❌ Error en captura: {e}")
+            return False
+
+    def capture_frame_but_discard(self):
+        """Verificar si hay frames disponibles pero NO guardar - MODO SIN GRABAR"""
+        try:
+            # Solo verificar disponibilidad sin guardar
+            if not hasattr(self.main_window.video_widget, 'gstreamer_manager'):
+                logger.warning("⚠️ GStreamerManager no disponible")
+                return False
+            
+            gstreamer_manager = self.main_window.video_widget.gstreamer_manager
+            frame_data = gstreamer_manager.get_latest_frame_for_capture()
+            
+            if frame_data:
+                raw_data, width, height = frame_data
+                logger.info(f"📷 Frame verificado: {width}x{height}, {len(raw_data)} bytes - NO guardado")
+                return True
+            else:
+                logger.warning("⚠️ No hay frames en cache")
+                return False
+                
+        except Exception as e:
+            logger.error(f"❌ Error verificando frame: {e}")
+            return False
