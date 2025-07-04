@@ -52,13 +52,18 @@ class DateTimeRenderer:
             text_width = text_extents.width
             text_height = text_extents.height
             
-            # SISTEMA SIMÉTRICO: Box fijo izquierda, crece hacia la derecha
+            # SISTEMA SIMÉTRICO Y CONSISTENTE: Posiciones fijas X e Y
             padding = self.config['padding']
-            DISTANCIA_FIJA_BORDE = 150  # 150px desde borde izquierdo
+            DISTANCIA_FIJA_BORDE_X = 150  # 150px desde borde izquierdo
+            DISTANCIA_FIJA_BORDE_Y = 50   # 50px desde borde superior
             
-            box_left = DISTANCIA_FIJA_BORDE  # Inicio fijo del box
-            x = box_left + padding  # Posición del texto (dentro del box)
-            y = padding + text_height + 40  # Altura estándar
+            # Posiciones fijas del rectángulo (box)
+            box_left = DISTANCIA_FIJA_BORDE_X  # X del rectángulo: 150px (fijo)
+            box_top = DISTANCIA_FIJA_BORDE_Y   # Y del rectángulo: 50px (fijo)
+            
+            # Posiciones del texto (dentro del box)
+            x = box_left + padding  # X del texto: 150 + 25 = 175px
+            y = box_top + padding + text_height  # Y del texto: 50 + 25 + 32 = 107px
             
             # Dimensiones del fondo
             bg_width = text_width + (padding * 2)
@@ -79,7 +84,7 @@ class DateTimeRenderer:
             
             # Rectángulo con esquinas redondeadas - FECHA crece hacia DERECHA
             radius = self.config['border_radius']
-            self._draw_rounded_rectangle(context, box_left, y - text_height - padding/2, bg_width, bg_height, radius)
+            self._draw_rounded_rectangle(context, box_left, box_top, bg_width, bg_height, radius)
             context.fill()
             
             # === DIBUJAR TEXTO DINÁMICO ===

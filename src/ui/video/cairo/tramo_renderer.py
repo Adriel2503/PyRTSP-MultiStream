@@ -50,19 +50,23 @@ class TramoRenderer:
             video_width = surface.get_width()
             video_height = surface.get_height()
             
-            # SISTEMA SIMÉTRICO: Box fijo derecha, crece hacia la izquierda
+            # SISTEMA SIMÉTRICO Y CONSISTENTE: Posiciones fijas X e Y
             padding = self.config['padding']
-            DISTANCIA_FIJA_BORDE = 150  # 150px desde borde derecho (simétrico)
+            DISTANCIA_FIJA_BORDE_X = 150  # 150px desde borde derecho (simétrico)
+            DISTANCIA_FIJA_BORDE_Y = 50   # 50px desde borde superior (igual que datetime)
             
             # Dimensiones del fondo
             bg_width = text_width + (padding * 2)
             bg_height = text_height + (padding * 1.5)
             
-            # Posición: box fijo desde borde derecho, crece hacia izquierda
-            box_right = video_width - DISTANCIA_FIJA_BORDE  # Final fijo del box (1130px)
-            box_left = box_right - bg_width  # Inicio variable del box (crece hacia izquierda)
-            x = box_left + padding  # Posición del texto (dentro del box)
-            y = padding + text_height + 40  # Misma altura que datetime
+            # Posiciones fijas del rectángulo (box)
+            box_right = video_width - DISTANCIA_FIJA_BORDE_X  # X final del box: 2560 - 150 = 2410px
+            box_left = box_right - bg_width  # X inicial del box (crece hacia izquierda)
+            box_top = DISTANCIA_FIJA_BORDE_Y   # Y del rectángulo: 50px (fijo, igual que datetime)
+            
+            # Posiciones del texto (dentro del box)
+            x = box_left + padding  # X del texto: box_left + 25px
+            y = box_top + padding + text_height  # Y del texto: 50 + 25 + 32 = 107px (igual que datetime)
             
             # === DIBUJAR FONDO DINÁMICO TRANSPARENTE ===
             # Usar color de fondo de la configuración global si está disponible
@@ -79,7 +83,7 @@ class TramoRenderer:
             
             # Rectángulo con esquinas redondeadas - TRAMO crece hacia IZQUIERDA
             radius = self.config['border_radius']
-            self._draw_rounded_rectangle(context, box_left, y - text_height - padding/2, bg_width, bg_height, radius)
+            self._draw_rounded_rectangle(context, box_left, box_top, bg_width, bg_height, radius)
             context.fill()
             
             # === DIBUJAR TEXTO DINÁMICO ===

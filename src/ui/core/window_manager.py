@@ -23,18 +23,21 @@ class WindowManager(QObject):
         super().__init__()
         self.stacked_widget = stacked_widget
         self.login_screen = None
+        self.mode_selector = None
         self.stream_widget = None
         self.current_screen = "login"
         self.connected_ip = None
         logger.info("WindowManager inicializado")
     
-    def register_screens(self, login_screen, stream_widget):
+    def register_screens(self, login_screen, mode_selector, stream_widget):
         """Registrar las pantallas disponibles"""
         self.login_screen = login_screen
+        self.mode_selector = mode_selector
         self.stream_widget = stream_widget
         
         # Agregar al stacked widget
         self.stacked_widget.addWidget(login_screen)
+        self.stacked_widget.addWidget(mode_selector)
         self.stacked_widget.addWidget(stream_widget)
         
         # Mostrar login por defecto
@@ -49,6 +52,14 @@ class WindowManager(QObject):
             self.connected_ip = None
             self.screen_changed.emit("login")
             logger.info("Navegación a pantalla de login")
+    
+    def show_mode_selector(self):
+        """Mostrar pantalla de selección de modo"""
+        if self.mode_selector:
+            self.stacked_widget.setCurrentWidget(self.mode_selector)
+            self.current_screen = "mode_selector"
+            self.screen_changed.emit("mode_selector")
+            logger.info("Navegación a pantalla de selección de modo")
     
     def show_stream_screen(self, ip=None):
         """Mostrar pantalla de streaming"""

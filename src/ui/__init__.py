@@ -8,9 +8,11 @@ Refactorizado con estructura modular
 from .core.main_window import MainWindow
 from .video_widget import VideoWidget
 from .login_screen import LoginScreen
+from .mode_selector import ModeSelector
 
 __all__ = [
     "MainWindow",
     "VideoWidget",
-    "LoginScreen"
+    "LoginScreen",
+    "ModeSelector"
 ] 

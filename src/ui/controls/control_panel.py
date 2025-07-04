@@ -28,6 +28,7 @@ class ControlPanel(QWidget):
     def __init__(self):
         super().__init__()
         self.is_recording = False
+        self.current_mode = None  # NUEVO: Modo actual
         self.setup_ui()
         logger.info("ControlPanel inicializado")
     
@@ -215,4 +216,54 @@ class ControlPanel(QWidget):
         """Actualizar estado de grabación"""
         self.is_recording = is_recording
         # Aquí se puede cambiar el icono del botón según el estado
-        # Por ejemplo: self.record_button.setText("⏸️" if is_recording else "▶️") 
+        # Por ejemplo: self.record_button.setText("⏸️" if is_recording else "▶️")
+    
+    def set_inspection_mode(self, mode):
+        """Configurar panel según el modo de inspección"""
+        self.current_mode = mode
+        self._update_buttons_visibility()
+        logger.info(f"ControlPanel configurado para modo: {mode}")
+    
+    def _update_buttons_visibility(self):
+        """Actualizar visibilidad de botones según el modo"""
+        if self.current_mode == "pro":
+            # PRO: Todos los botones disponibles (sin botón +)
+            self.plus_button.setVisible(False)            # OCULTAR
+            self.record_button.setVisible(True)
+            self.stop_button.setVisible(True)
+            self.capture_button.setVisible(True)
+            self.annotate_button.setVisible(True)
+            self.reset_distance_button.setVisible(True)
+            self.clear_screen_button.setVisible(True)
+            self.settings_button.setVisible(True)
+            
+        elif self.current_mode == "rapido":
+            # RÁPIDO: Todos los botones disponibles (sin botón +)
+            self.plus_button.setVisible(False)            # OCULTAR
+            self.record_button.setVisible(True)
+            self.stop_button.setVisible(True)
+            self.capture_button.setVisible(True)
+            self.annotate_button.setVisible(True)         # MOSTRAR
+            self.reset_distance_button.setVisible(True)   # MOSTRAR
+            self.clear_screen_button.setVisible(True)     # MOSTRAR
+            self.settings_button.setVisible(True)         # MOSTRAR
+            
+        elif self.current_mode == "basico":
+            # BÁSICO: Opciones intermedias (sin botón +)
+            self.plus_button.setVisible(False)            # OCULTAR
+            self.record_button.setVisible(True)
+            self.stop_button.setVisible(True)
+            self.capture_button.setVisible(True)
+            self.annotate_button.setVisible(False)        # OCULTAR
+            self.reset_distance_button.setVisible(True)
+            self.clear_screen_button.setVisible(True)
+            self.settings_button.setVisible(True)
+        
+        # Forzar actualización del layout
+        self.adjustSize()
+        self.update()
+        logger.debug(f"Botones actualizados para modo: {self.current_mode}")
+    
+    def get_current_mode(self):
+        """Obtener modo actual"""
+        return self.current_mode 

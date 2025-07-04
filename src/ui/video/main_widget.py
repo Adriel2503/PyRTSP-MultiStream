@@ -63,7 +63,7 @@ class VideoWidget(QFrame):
         
         # Asegurar que el widget sea nativo para overlay
         self.setAttribute(Qt.WidgetAttribute.WA_NativeWindow, True)
-        self.setAttribute(Qt.WidgetAttribute.WA_PaintOnScreen, True)
+        # Nota: WA_PaintOnScreen removido para evitar warning paintEngine en PyQt6
         
         logger.debug("Widget configurado para overlay nativo")
     

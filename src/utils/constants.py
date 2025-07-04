@@ -1,6 +1,5 @@
-# -*- coding: utf-8 -*-
 """
-Constantes globales del proyecto PyRTSP-FastStream
+Constantes globales del proyecto
 """
 
 # === CONFIGURACIÓN DE APLICACIÓN ===
@@ -11,7 +10,7 @@ APP_TITLE = "IRIS PIPE INSPECTION SOFTWARE"
 # === CONFIGURACIÓN DE GSTREAMER ===
 DEFAULT_RTSP_URL = "rtsp://admin:Prototipo@192.168.18.5:554/Streaming/Channels/101"
 
-# Pipeline GStreamer optimizado CON OVERLAYS NATIVOS (7 overlays: malla + 5 textos + anotaciones)
+# Pipeline GStreamer - OVERLAYS NATIVOS (7 overlays: malla + 5 textos + anotaciones)
 GSTREAMER_PIPELINE_TEMPLATE = """
 rtspsrc location={url} protocols=tcp latency=0 name=rtspsrc
 ! rtph264depay name=depay
@@ -39,7 +38,7 @@ CAIRO_GRID_CONFIG = {
     'grid_spacing_x': 400,                    # Espaciado horizontal entre líneas (80px)
     'grid_spacing_y': 200,                    # Espaciado vertical entre líneas (60px)
     'start_offset_x': 150,                    # Offset inicial horizontal (40px desde borde)
-    'start_offset_y': 40,                    # Offset inicial vertical (30px desde borde)
+    'start_offset_y': 50,                    # Offset inicial vertical (30px desde borde)
     'changeable_color': True                 # Permitir cambio de color en el futuro
 }
 
@@ -47,12 +46,12 @@ CAIRO_GRID_CONFIG = {
 CAIRO_OVERLAY_CONFIG = {
     'datetime_format': '%Y/%m/%d %H:%M:%S',  # Formato de fecha/hora
     'font_family': 'Arial',
-    'font_size': 32,                         # Aumentado de 24 a 32 (MUY GRANDE)
+    'font_size': 32,                         # MUY GRANDE
     'font_weight': 'bold',
     'text_color': (1.0, 1.0, 1.0, 1.0),     # Blanco RGBA
     'bg_color': (1.0, 0.65, 0.15, 0.2),     # Naranja MÁS transparente con alpha 0.2
-    'padding': 25,                           # Aumentado de 20 a 25 (más espacio)
-    'border_radius': 15,                     # Aumentado de 12 a 15 (más redondeado)
+    'padding': 25,                           # Más espacio
+    'border_radius': 15,                     # Más redondeado
     'position': 'top-left'
 }
 

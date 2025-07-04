@@ -79,9 +79,15 @@ class ColorButton(QPushButton):
             background-color: {rgb};
             border: 2px solid #000000;
             border-radius: 6px;
+            padding: 2px;
         }}
         QPushButton:hover {{
             border: 2px solid #FFA726;
+        }}
+        QPushButton:pressed {{
+            border: 3px solid #FF9800;
+            background-color: {rgb};
+            box-shadow: inset 0 2px 4px rgba(0,0,0,0.3);
         }}
         """)
         self.setToolTip(f"Color: {hex_color.upper()}")

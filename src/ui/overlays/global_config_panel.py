@@ -7,7 +7,7 @@ Maneja configuraciones que afectan a todos los elementos
 from PyQt6.QtWidgets import (
     QGridLayout, QLabel, QSlider, QLineEdit, QWidget, QVBoxLayout
 )
-from PyQt6.QtCore import Qt
+from PyQt6.QtCore import Qt, QTimer
 from PyQt6.QtGui import QColor, QDoubleValidator
 
 from .custom_widgets import ColorButton
@@ -24,8 +24,14 @@ class GlobalConfigPanel(QWidget):
     def __init__(self):
         super().__init__()
         
+        # Estado para fecha/hora
+        self.real_time_mode = True  # Por defecto en tiempo real
+        self.datetime_timer = QTimer()
+        self.datetime_timer.timeout.connect(self.update_real_time)
+        
         self.setup_ui()
         self.setup_styles()
+        self.start_real_time_mode()
         
         logger.debug("GlobalConfigPanel inicializado")
     
@@ -40,12 +46,14 @@ class GlobalConfigPanel(QWidget):
         layout.setContentsMargins(15, 10, 15, 15)
         layout.setSpacing(15)
         
-        # === FECHA Y HORA (EDITABLE) ===
+        # === FECHA Y HORA (DINÁMICA) ===
         layout.addWidget(QLabel("Fecha y Hora"), 0, 0)
         self.datetime_input = QLineEdit()
-        self.datetime_input.setPlaceholderText("YYYY/MM/DD HH:MM:SS")
-        self.datetime_input.setStyleSheet(StyleManager.get_input_field_style())
-        self.update_datetime_input()  # Establecer valor inicial
+        self.datetime_input.setPlaceholderText("Doble clic para personalizar")
+        self.datetime_input.setReadOnly(True)  # Solo lectura por defecto
+        self.datetime_input.setText("TIEMPO REAL")  # Texto inicial
+        self.datetime_input.mouseDoubleClickEvent = self.toggle_datetime_mode
+        self.update_datetime_style()  # Aplicar estilo inicial
         layout.addWidget(self.datetime_input, 0, 1, 1, 2)
         
         # === CONSTANTE ===
@@ -168,11 +176,7 @@ class GlobalConfigPanel(QWidget):
             if label_item and isinstance(label_item.widget(), QLabel):
                 label_item.widget().setStyleSheet(StyleManager.get_label_style())
     
-    def update_datetime_input(self):
-        """Establecer fecha y hora actual como valor inicial"""
-        current_time = datetime.datetime.now()
-        formatted_time = current_time.strftime('%Y/%m/%d %H:%M:%S')
-        self.datetime_input.setText(formatted_time)
+
     
     def get_config(self):
         """Obtener configuración actual del panel"""
@@ -196,7 +200,8 @@ class GlobalConfigPanel(QWidget):
             'grid_color': self.grid_color_button.get_color(),
             'grid_color_rgba': grid_rgba,  # ✅ RGBA para el renderer
             'constant': self._get_valid_constant(),
-            'datetime_custom': self.datetime_input.text()  # ✅ Fecha/hora personalizada
+            'datetime_custom': self.datetime_input.text() if not self.real_time_mode else None,  # ✅ Solo si no es tiempo real
+            'use_real_time': self.real_time_mode  # ✅ Indicar si usar tiempo real
         }
         
         logger.debug(f"Configuración global obtenida: {config}")
@@ -231,8 +236,15 @@ class GlobalConfigPanel(QWidget):
         if 'constant' in config:
             self.constant_input.setText(str(float(config['constant'])))
         
-        if 'datetime_custom' in config:
-            self.datetime_input.setText(config['datetime_custom'])
+        # Manejar configuración de fecha/hora
+        if 'use_real_time' in config and not config['use_real_time']:
+            # Modo manual con fecha personalizada
+            if 'datetime_custom' in config and config['datetime_custom']:
+                self.stop_real_time_mode()
+                self.datetime_input.setText(config['datetime_custom'])
+        else:
+            # Modo tiempo real por defecto
+            self.start_real_time_mode()
         
         logger.debug("Configuración cargada en GlobalConfigPanel")
     
@@ -249,6 +261,106 @@ class GlobalConfigPanel(QWidget):
             logger.warning(f"Constante inválida '{self.constant_input.text()}', usando 42.0")
             return 42.0
     
+    def start_real_time_mode(self):
+        """Iniciar modo de tiempo real"""
+        self.real_time_mode = True
+        self.datetime_input.setReadOnly(True)
+        self.datetime_input.setText("TIEMPO REAL")
+        self.update_datetime_style()
+        # Actualizar cada segundo
+        self.datetime_timer.start(1000)
+        logger.debug("Modo tiempo real iniciado")
+    
+    def stop_real_time_mode(self):
+        """Detener modo de tiempo real"""
+        self.real_time_mode = False
+        self.datetime_timer.stop()
+        self.datetime_input.setReadOnly(False)
+        # Poner fecha/hora actual como punto de partida para editar
+        current_time = datetime.datetime.now()
+        formatted_time = current_time.strftime('%Y/%m/%d %H:%M:%S')
+        self.datetime_input.setText(formatted_time)
+        self.datetime_input.selectAll()  # Seleccionar todo para fácil edición
+        self.update_datetime_style()
+        logger.debug("Modo tiempo real detenido - modo manual activado")
+    
+    def update_real_time(self):
+        """Actualizar fecha/hora en tiempo real"""
+        if self.real_time_mode:
+            current_time = datetime.datetime.now()
+            formatted_time = current_time.strftime('%Y/%m/%d %H:%M:%S')
+            self.datetime_input.setText(f"🕒 {formatted_time}")
+    
+    def toggle_datetime_mode(self, event):
+        """Alternar entre modo tiempo real y manual (doble clic)"""
+        if self.real_time_mode:
+            self.stop_real_time_mode()
+            self.datetime_input.setFocus()
+        else:
+            self.start_real_time_mode()
+    
+    def update_datetime_style(self):
+        """Actualizar estilo del campo de fecha según el modo"""
+        if self.real_time_mode:
+            # Estilo para modo tiempo real (verde, dinámico)
+            style = """
+            QLineEdit {
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
+                    stop:0 rgba(76, 175, 80, 50), 
+                    stop:1 rgba(139, 195, 74, 50));
+                color: #4CAF50;
+                border: 2px solid #4CAF50;
+                border-radius: 6px;
+                padding: 8px;
+                font-weight: bold;
+                font-size: 13px;
+            }
+            QLineEdit:hover {
+                border: 2px solid #45a049;
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
+                    stop:0 rgba(76, 175, 80, 80), 
+                    stop:1 rgba(139, 195, 74, 80));
+            }
+            """
+        else:
+            # Estilo para modo manual (cortina gris)
+            style = """
+            QLineEdit {
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
+                    stop:0 rgba(120, 120, 120, 100), 
+                    stop:1 rgba(90, 90, 90, 100));
+                color: #FFFFFF;
+                border: 2px solid #757575;
+                border-radius: 6px;
+                padding: 8px;
+                font-weight: normal;
+                font-size: 13px;
+            }
+            QLineEdit:hover {
+                border: 2px solid #FFA726;
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
+                    stop:0 rgba(120, 120, 120, 150), 
+                    stop:1 rgba(90, 90, 90, 150));
+            }
+            QLineEdit:focus {
+                border: 2px solid #FF9800;
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
+                    stop:0 rgba(255, 152, 0, 30), 
+                    stop:1 rgba(255, 193, 7, 30));
+            }
+            """
+        
+        self.datetime_input.setStyleSheet(style)
+        
+        # Actualizar tooltip
+        if self.real_time_mode:
+            self.datetime_input.setToolTip("🕒 Tiempo real - Doble clic para personalizar")
+        else:
+            self.datetime_input.setToolTip("✏️ Fecha personalizada - Doble clic para tiempo real")
+
     def cleanup(self):
-        """Limpiar recursos del panel - actualmente no hay recursos que limpiar"""
-        pass 
+        """Limpiar recursos del panel"""
+        # Detener timer si está corriendo
+        if hasattr(self, 'datetime_timer') and self.datetime_timer.isActive():
+            self.datetime_timer.stop()
+        logger.debug("GlobalConfigPanel limpiado") 

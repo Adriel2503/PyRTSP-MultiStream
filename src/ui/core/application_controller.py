@@ -59,18 +59,18 @@ class ApplicationController(QObject):
         self.is_connected = True
         self.current_rtsp_url = rtsp_url
         
-        # Notificar al window manager
+        # Ir a selección de modo en lugar de stream directo
         if self.window_manager:
-            self.window_manager.handle_connection_success(ip)
+            self.window_manager.show_mode_selector()
         
-        # Iniciar monitoreo de estadísticas
+        # Preparar monitoreo de estadísticas (no iniciar aún)
         if self.stats_display:
             self.stats_display.set_video_widget(self.video_widget)
-            self.stats_display.start_monitoring()
+            # No iniciamos aún el monitoreo - se iniciará cuando se seleccione el modo
         
         # Emitir señal
         self.stream_started.emit(rtsp_url)
-        logger.info(f"Conexión exitosa establecida - {ip}")
+        logger.info(f"Conexión exitosa establecida - {ip}, mostrando selección de modo")
     
     def _handle_connection_failure(self):
         """Manejar fallo de conexión"""

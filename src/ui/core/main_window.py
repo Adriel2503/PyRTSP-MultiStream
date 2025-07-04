@@ -15,11 +15,13 @@ from PyQt6.QtGui import QKeySequence, QShortcut
 from ...utils.logger import setup_logger
 from ..video_widget import VideoWidget
 from ..login_screen import LoginScreen
+from ..mode_selector import ModeSelector
 from ..controls.control_panel import ControlPanel
 from ..controls.stats_display import StatsDisplay
 from ..controls.button_handlers import ButtonHandlers
 from .window_manager import WindowManager
 from .application_controller import ApplicationController
+from ...core.mode_manager import ModeManager, InspectionMode
 
 logger = setup_logger("MainWindow")
 
@@ -31,6 +33,7 @@ class MainWindow(QMainWindow):
         # Componentes de UI
         self.video_widget = None
         self.login_screen = None
+        self.mode_selector = None
         self.stream_widget = None
         self.control_panel = None
         self.stats_display = None
@@ -39,6 +42,7 @@ class MainWindow(QMainWindow):
         self.window_manager = None
         self.app_controller = None
         self.button_handlers = None
+        self.mode_manager = None
         
         self.setup_ui()
         self.setup_components()
@@ -56,6 +60,7 @@ class MainWindow(QMainWindow):
         
         # === CREAR PANTALLAS ===
         self.login_screen = LoginScreen()
+        self.mode_selector = ModeSelector()
         self.stream_widget = self._create_stream_widget()
         
         # Agregar atajo de teclado para desconectar (Escape)
@@ -70,9 +75,10 @@ class MainWindow(QMainWindow):
         self.window_manager = WindowManager(self.stacked_widget)
         self.app_controller = ApplicationController(self)
         self.button_handlers = ButtonHandlers(self)
+        self.mode_manager = ModeManager()
         
         # === REGISTRAR PANTALLAS EN WINDOW MANAGER ===
-        self.window_manager.register_screens(self.login_screen, self.stream_widget)
+        self.window_manager.register_screens(self.login_screen, self.mode_selector, self.stream_widget)
         
         # === ESTABLECER COMPONENTES EN APPLICATION CONTROLLER ===
         self.app_controller.set_components(
@@ -129,6 +135,9 @@ class MainWindow(QMainWindow):
         # === SEÑALES DEL LOGIN SCREEN ===
         self.login_screen.connection_requested.connect(self.app_controller.handle_connection_request)
         
+        # === SEÑALES DEL MODE SELECTOR ===
+        self.mode_selector.mode_selected.connect(self._on_mode_selected)
+        
         # === SEÑALES DEL PANEL DE CONTROL ===
         if self.control_panel and self.button_handlers:
             self.control_panel.plus_button_clicked.connect(self.button_handlers.handle_plus_button)
@@ -149,6 +158,32 @@ class MainWindow(QMainWindow):
         else:
             # Fallback si no hay controller
             self.disconnect_stream()
+    
+    def _on_mode_selected(self, mode_str):
+        """Manejar selección de modo de inspección"""
+        try:
+            # Configurar modo en el manager
+            mode = InspectionMode(mode_str)
+            self.mode_manager.set_mode(mode)
+            
+            # Configurar control panel según el modo
+            if self.control_panel:
+                self.control_panel.set_inspection_mode(mode_str)
+            
+            # Iniciar monitoreo de estadísticas ahora que se seleccionó el modo
+            if self.stats_display and self.video_widget:
+                self.stats_display.start_monitoring()
+            
+            # Ir a pantalla de stream
+            if self.window_manager:
+                self.window_manager.show_stream_screen()
+            
+            logger.info(f"Modo {mode_str} seleccionado y configurado exitosamente")
+            
+        except ValueError as e:
+            logger.error(f"Modo inválido seleccionado: {mode_str} - {e}")
+        except Exception as e:
+            logger.error(f"Error configurando modo {mode_str}: {e}")
     
     def disconnect_stream(self):
         """Método legacy para desconectar (mantener compatibilidad)"""

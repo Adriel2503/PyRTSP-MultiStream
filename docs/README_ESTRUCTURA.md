@@ -92,6 +92,9 @@ PyRTSP-FastStream/
 │   ├── INSTALLATION.md              # Guía de instalación
 │   ├── API_REFERENCE.md             # Referencia de API
 │   ├── CONTRIBUTING.md              # Guía para contribuidores
+│   ├── README_OVERLAY_POSITIONING.md    # Sistema de coordenadas de overlays
+│   ├── README_OVERLAY_QUICK_REFERENCE.md # Guía rápida de overlays
+│   ├── README_ESTRUCTURA.md         # Estructura del proyecto (este archivo)
 │   └── 📁 images/                   # Imágenes para documentación
 │       ├── architecture.png         # Diagrama de arquitectura
 │       └── screenshots/             # Capturas de pantalla
@@ -253,6 +256,54 @@ PyRTSP-FastStream/
 - **⚡ FFmpeg**: Backend de balance perfecto
 - **📊 Métricas**: Sistema de análisis en tiempo real
 - **🎯 RTSP/TCP**: Protocolo optimizado para streaming
+
+---
+
+## 📐 Documentación de Overlays
+
+El sistema de overlays de IRIS - WELLTEP cuenta con documentación especializada:
+
+### 📚 **Documentos Disponibles**
+
+1. **[README_OVERLAY_POSITIONING.md](README_OVERLAY_POSITIONING.md)**
+   - 📐 Sistema de coordenadas completo
+   - 🎯 Posicionamiento en frame 2560x1440
+   - 🔧 Guía de configuración y personalización
+   - 🏗️ Arquitectura de renderers Cairo
+   - 🛠️ Ejemplos de implementación
+
+2. **[README_OVERLAY_QUICK_REFERENCE.md](README_OVERLAY_QUICK_REFERENCE.md)**
+   - 🚀 Guía rápida de referencia
+   - 📊 Tabla de coordenadas
+   - ⚡ Comandos de modificación rápida
+   - 🐛 Solución de problemas comunes
+
+### 🎨 **Sistema de Overlays**
+
+El sistema utiliza **coordenadas fijas** en el frame original de 2560x1440:
+
+```python
+# Coordenadas base
+DISTANCIA_FIJA_BORDE_X = 150px  # Margen horizontal
+DISTANCIA_FIJA_BORDE_Y = 50px   # Margen vertical
+
+# Overlays principales
+FECHA/HORA:    (150px, 50px)    # Superior izquierda
+REF. TRAMO:    (2410px, 50px)   # Superior derecha
+POZO INICIO:   (150px, 1340px)  # Inferior izquierda
+POZO FIN:      (2410px, 1340px) # Inferior derecha
+```
+
+### 🔧 **Archivos de Overlays**
+
+```
+src/ui/video/cairo/
+├── datetime_renderer.py     # Fecha/hora
+├── tramo_renderer.py       # REF. Tramo  
+├── pozos_renderer.py       # Pozos + Distancia
+├── grid_renderer.py        # Cuadrícula
+└── annotation_renderer.py  # Anotaciones
+```
 
 ---
 
