@@ -23,12 +23,14 @@ class ControlPanel(QWidget):
     annotate_button_clicked = pyqtSignal()
     reset_distance_clicked = pyqtSignal()
     clear_screen_clicked = pyqtSignal()
+    report_button_clicked = pyqtSignal()  # ✅ NUEVO: Señal para botón de informe
     settings_button_clicked = pyqtSignal()
     
     def __init__(self):
         super().__init__()
         self.is_recording = False
         self.current_mode = None  # NUEVO: Modo actual
+        self.session_manager = None  # Referencia al SessionManager
         self.setup_ui()
         logger.info("ControlPanel inicializado")
     
@@ -67,6 +69,7 @@ class ControlPanel(QWidget):
         self.annotate_button = self._create_control_button("📝", "Anotar", self.annotate_button_clicked)
         self.reset_distance_button = self._create_control_button("📏", "Resetear Distancia", self.reset_distance_clicked)
         self.clear_screen_button = self._create_control_button("🧹", "Limpiar Pantalla", self.clear_screen_clicked)
+        self.report_button = self._create_control_button("📋", "Generar Informe", self.report_button_clicked)  # ✅ NUEVO
         
         # === BOTÓN DE CONFIGURACIONES ===
         self.settings_button = self._create_settings_button()
@@ -79,7 +82,8 @@ class ControlPanel(QWidget):
         # Agregar botones de control verticalmente
         control_buttons = [
             self.record_button, self.stop_button, self.capture_button,
-            self.annotate_button, self.reset_distance_button, self.clear_screen_button
+            self.annotate_button, self.reset_distance_button, self.clear_screen_button,
+            self.report_button  # ✅ NUEVO: Botón de informe
         ]
         
         for button in control_buttons:
@@ -227,14 +231,15 @@ class ControlPanel(QWidget):
     def _update_buttons_visibility(self):
         """Actualizar visibilidad de botones según el modo"""
         if self.current_mode == "pro":
-            # PRO: Todos los botones disponibles (sin botón +)
-            self.plus_button.setVisible(False)            # OCULTAR
+            # PRO: Todos los botones disponibles (CON botón +)
+            self.plus_button.setVisible(True)             # ✅ MOSTRAR
             self.record_button.setVisible(True)
             self.stop_button.setVisible(True)
             self.capture_button.setVisible(True)
             self.annotate_button.setVisible(True)
             self.reset_distance_button.setVisible(True)
             self.clear_screen_button.setVisible(True)
+            self.report_button.setVisible(True)           # ✅ NUEVO: Mostrar en PRO
             self.settings_button.setVisible(True)
             
         elif self.current_mode == "rapido":
@@ -246,23 +251,83 @@ class ControlPanel(QWidget):
             self.annotate_button.setVisible(True)         # MOSTRAR
             self.reset_distance_button.setVisible(True)   # MOSTRAR
             self.clear_screen_button.setVisible(True)     # MOSTRAR
+            self.report_button.setVisible(True)           # ✅ NUEVO: Mostrar en RÁPIDO
             self.settings_button.setVisible(True)         # MOSTRAR
             
         elif self.current_mode == "basico":
-            # BÁSICO: Opciones intermedias (sin botón +)
-            self.plus_button.setVisible(False)            # OCULTAR
+            # BÁSICO: Opciones intermedias (CON botón +)
+            self.plus_button.setVisible(True)             # ✅ MOSTRAR
             self.record_button.setVisible(True)
             self.stop_button.setVisible(True)
             self.capture_button.setVisible(True)
             self.annotate_button.setVisible(False)        # OCULTAR
             self.reset_distance_button.setVisible(True)
             self.clear_screen_button.setVisible(True)
+            self.report_button.setVisible(True)           # ✅ NUEVO: Mostrar en BÁSICO
             self.settings_button.setVisible(True)
         
         # Forzar actualización del layout
         self.adjustSize()
         self.update()
         logger.debug(f"Botones actualizados para modo: {self.current_mode}")
+    
+    def _update_plus_button_state(self):
+        """Actualizar estado del botón + según si ya hay datos de inspección"""
+        if not self.session_manager or not hasattr(self, 'plus_button'):
+            return
+        
+        # Solo verificar para modos que tienen botón +
+        if self.current_mode in ["pro", "basico"]:
+            has_data = self.session_manager.has_inspection_data()
+            
+            if has_data:
+                # Deshabilitar y cambiar apariencia
+                self.plus_button.setEnabled(False)
+                self.plus_button.setStyleSheet("""
+                    QPushButton {
+                        background: qlineargradient(x1: 0, y1: 0, x2: 0, y2: 1,
+                                                  stop: 0 #6c757d, stop: 1 #5a6268);
+                        color: #adb5bd;
+                        border: 2px solid #6c757d;
+                        border-radius: 25px;
+                        font-size: 16px;
+                        font-weight: bold;
+                        width: 50px;
+                        height: 50px;
+                    }
+                """)
+                self.plus_button.setToolTip("Datos ya completados ✓")
+                logger.debug("Botón + deshabilitado - Datos de inspección ya existen")
+            else:
+                # Habilitar con estilo normal
+                self.plus_button.setEnabled(True) 
+                self.plus_button.setStyleSheet("""
+                    QPushButton {
+                        background: qlineargradient(x1: 0, y1: 0, x2: 0, y2: 1,
+                                                  stop: 0 #28a745, stop: 1 #1e7e34);
+                        color: white;
+                        border: 2px solid #1e7e34;
+                        border-radius: 25px;
+                        font-size: 16px;
+                        font-weight: bold;
+                        width: 50px;
+                        height: 50px;
+                    }
+                    QPushButton:hover {
+                        background: qlineargradient(x1: 0, y1: 0, x2: 0, y2: 1,
+                                                  stop: 0 #218838, stop: 1 #1c7430);
+                    }
+                    QPushButton:pressed {
+                        background: qlineargradient(x1: 0, y1: 0, x2: 0, y2: 1,
+                                                  stop: 0 #1e7e34, stop: 1 #155724);
+                    }
+                """)
+                self.plus_button.setToolTip("Agregar datos de inspección")
+                logger.debug("Botón + habilitado - Sin datos de inspección")
+    
+    def refresh_plus_button_state(self):
+        """Método público para refrescar el estado del botón + desde otros componentes"""
+        self._update_plus_button_state()
     
     def get_current_mode(self):
         """Obtener modo actual"""

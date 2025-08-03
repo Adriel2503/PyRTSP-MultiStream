@@ -8,4 +8,5 @@ numpy==1.24.3
 Pillow==10.1.0
 psutil==5.9.6
 colorama==0.4.6
-pyinstaller==6.3.0 
+pyinstaller==6.3.0
+fpdf2==2.7.6 

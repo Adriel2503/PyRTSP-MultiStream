@@ -24,7 +24,7 @@ class ModeManager:
                 "name": "Profesional",
                 "description": "Funcionalidad completa\nTodas las opciones disponibles",
                 "icon": "🏆",
-                "control_buttons": ["record", "stop", "capture", "annotate", "reset", "clear", "settings"],
+                "control_buttons": ["plus", "record", "stop", "capture", "annotate", "reset", "clear", "settings", "report"],
                 "configurable_overlays": ["fecha", "distancia", "grilla", "pozos", "tramo", "anotaciones"],
                 "pdf_template": "pro_report.html"
             },
@@ -32,7 +32,7 @@ class ModeManager:
                 "name": "Rápido",
                 "description": "Inspección rápida\nSolo lo esencial",
                 "icon": "⚡",
-                "control_buttons": ["record", "stop", "capture", "annotate", "reset", "clear", "settings"],  # SIN BOTÓN +
+                "control_buttons": ["record", "stop", "capture", "annotate", "reset", "clear", "settings", "report"],  # SIN BOTÓN +
                 "configurable_overlays": ["fecha", "distancia", "grilla"],
                 "pdf_template": "rapido_report.html"
             },
@@ -40,7 +40,7 @@ class ModeManager:
                 "name": "Básico", 
                 "description": "Inspección intermedia\nOpciones básicas",
                 "icon": "📝",
-                "control_buttons": ["record", "stop", "capture", "reset", "clear", "settings"],
+                "control_buttons": ["plus", "record", "stop", "capture", "reset", "clear", "settings", "report"],
                 "configurable_overlays": ["fecha", "distancia", "grilla", "pozos"],
                 "pdf_template": "basico_report.html"
             }

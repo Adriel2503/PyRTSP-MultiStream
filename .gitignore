@@ -41,4 +41,10 @@ grabaciones/*.mkv
 *.exe
 *.msi
 *.deb
-*.rpm 
+*.rpm
+
+# Media and document files
+*.mp4
+*.pdf
+*.json
+*.jpg 

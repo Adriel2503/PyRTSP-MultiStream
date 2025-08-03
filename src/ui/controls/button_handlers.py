@@ -16,6 +16,10 @@ import time
 import numpy as np
 
 from ...utils.logger import setup_logger
+from ...utils.path_manager import get_path_manager
+from ...utils.session_manager import get_session_manager
+from ...utils.rapid_report_generator import RapidReportGenerator
+from ...core.mode_manager import InspectionMode
 from ..inspection_form_dialog import InspectionFormDialog
 from ..overlays.overlay_config_dialog import OverlayConfigDialog
 
@@ -27,14 +31,25 @@ class ButtonHandlers:
     def __init__(self, main_window):
         self.main_window = main_window
         self.is_recording = False
-        logger.info("ButtonHandlers inicializado")
+        
+        # Inicializar gestores de rutas y sesión
+        self.path_manager = get_path_manager()
+        self.session_manager = get_session_manager()
+        
+        # Inicializar generador de informes rápidos
+        self.rapid_report_generator = RapidReportGenerator(self.path_manager, self.session_manager)
+        
+        logger.info("ButtonHandlers inicializado con gestores de rutas, sesión y generador de informes")
     
     def handle_plus_button(self):
         """Manejar clic en botón flotante '+' - Mostrar formulario de inspección"""
         logger.info("Botón '+' presionado - Abriendo formulario de inspección")
         
-        # Crear y mostrar el dialog de formulario de inspección
-        dialog = InspectionFormDialog(self.main_window)
+        # Obtener modo actual
+        current_mode = self.main_window.mode_manager.current_mode
+        
+        # Crear y mostrar el dialog de formulario de inspección con el modo
+        dialog = InspectionFormDialog(self.main_window, current_mode)
         
         # Conectar señal para recibir los datos guardados
         dialog.data_saved.connect(self.handle_inspection_data_saved)
@@ -46,6 +61,13 @@ class ButtonHandlers:
         """Manejar datos guardados del formulario de inspección"""
         logger.info("Datos de inspección recibidos desde el formulario")
         logger.debug(f"Datos completos: {data}")
+        
+        # ✅ NUEVO: Actualizar datos de inspección en la sesión actual
+        self.session_manager.update_inspection_data(data)
+        
+        # ✅ NUEVO: Refrescar estado del botón + en el control panel
+        if hasattr(self.main_window, 'control_panel'):
+            self.main_window.control_panel.refresh_plus_button_state()
         
         # Actualizar overlays en el video
         ref_tramo = data.get('ref_tramo', '')
@@ -80,6 +102,9 @@ class ButtonHandlers:
 🎬 Los overlays ahora se muestran en el video:
    📍 Superior: REF. TRAMO
    📍 Inferior: POZO INICIO y POZO FIN
+
+💾 Datos almacenados en la sesión actual
+📁 Se incluirán en los metadatos JSON
         """.strip()
         
         # Mostrar resumen
@@ -88,9 +113,8 @@ class ButtonHandlers:
     def handle_record_button(self):
         """Iniciar grabación al presionar el botón de grabación"""
         if not self.is_recording:
-            # Generar nombre de archivo basado en la fecha y hora actuales
-            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            filename = f"C:/Users/ariel/Documents/Welltep/grabaciones/inspeccion_{timestamp}.mp4"
+            # Usar PathManager para generar ruta según el modo activo
+            filename = self.path_manager.generate_recording_filename()
             
             # Configurar y iniciar el pipeline de GStreamer para grabación
             success = self.start_gstreamer_recording(filename)
@@ -99,13 +123,20 @@ class ButtonHandlers:
                 self.is_recording = True
                 logger.info(f"📹 ✅ GRABACIÓN INICIADA: {filename}")
                 
+                # Registrar grabación en la sesión actual
+                self.session_manager.add_recording(filename)
+                
+                # Obtener información para mostrar al usuario
+                basename = os.path.basename(filename)
+                mode_folder = self.path_manager.get_current_mode_folder()
+                
                 # Mostrar confirmación en pantalla
                 QMessageBox.information(
                     self.main_window, 
                     "🎬 GRABACIÓN INICIADA", 
                     f"✅ Grabación iniciada exitosamente\n\n"
-                    f"📁 Archivo: inspeccion_{timestamp}.mp4\n"
-                    f"📍 Ubicación: C:/Users/ariel/Documents/Welltep/grabaciones/\n"
+                    f"📁 Archivo: {basename}\n"
+                    f"📍 Ubicación: metadatos/{mode_folder}/grabaciones/\n"
                     f"🎯 Estado: GRABANDO ACTIVAMENTE\n\n"
                     f"💡 Presiona STOP para detener la grabación"
                 )
@@ -117,7 +148,7 @@ class ButtonHandlers:
                     "No se pudo iniciar la grabación.\n\n"
                     "Verifica:\n"
                     "• Que el stream esté activo\n"
-                    "• Que la carpeta grabaciones/ exista\n"
+                    "• Que las carpetas de modo existan\n"
                     "• Los logs en la terminal para más detalles"
                 )
         else:
@@ -139,11 +170,18 @@ class ButtonHandlers:
             try:
                 success = self.capture_frame_and_save()
                 if success:
+                    # Registrar captura en la sesión actual
+                    filename = self.path_manager.generate_capture_filename()
+                    self.session_manager.add_capture(filename)
+                    
+                    # Obtener información para mostrar al usuario
+                    mode_folder = self.path_manager.get_current_mode_folder()
+                    
                     QMessageBox.information(
                         self.main_window, 
                         "📷 Captura Iniciada", 
                         "✅ Captura procesándose en background\n\n"
-                        "📁 Ubicación: grabaciones/capturas/\n"
+                        f"📁 Ubicación: metadatos/{mode_folder}/capturas/\n"
                         "🖼️ Formato: JPEG (PyAV/FFmpeg, ultra-rápido)\n"
                         "📐 Resolución: 2560×1440\n"
                         "🎯 Incluye todos los overlays Cairo\n\n"
@@ -157,7 +195,7 @@ class ButtonHandlers:
                         "No se pudo guardar la captura.\n\n"
                         "Posibles causas:\n"
                         "• Grabación no iniciada (requerida para capturas)\n"
-                        "• Permisos de escritura en carpeta grabaciones/\n"
+                        "• Permisos de escritura en carpetas de modo\n"
                         "• Espacio en disco disponible\n\n"
                         "💡 Tip: DEBES iniciar grabación primero\n"
                         "Las capturas usan frames del proceso de grabación"
@@ -289,17 +327,10 @@ class ButtonHandlers:
             # Aquí se pueden agregar más limpiezas en el futuro
             # Por ejemplo: resetear distancia, limpiar otros overlays temporales, etc.
             
-            QMessageBox.information(self.main_window, "🧹 Pantalla Limpiada", 
-                                   "✅ Pantalla limpiada exitosamente\n\n"
-                                   "Se han eliminado:\n"
-                                   "• Anotaciones activas\n"
-                                   "• Elementos temporales\n\n"
-                                   "El video continúa funcionando normalmente.")
+            # ✅ Pantalla limpiada silenciosamente (sin mensaje molesto)
         else:
             logger.warning("Video widget no disponible para limpiar")
-            QMessageBox.warning(self.main_window, "🧹 Error", 
-                               "No se puede limpiar la pantalla.\n"
-                               "Video no disponible.")
+            # ✅ Error silencioso, solo en logs
     
     def handle_settings_button(self):
         """Manejar clic en botón de configuraciones"""
@@ -413,14 +444,8 @@ class ButtonHandlers:
             raw_data, width, height = frame_data
             logger.info(f"📷 Capturando frame {width}x{height}, {len(raw_data)} bytes")
             
-            # Generar filename con timestamp
-            timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-            captures_dir = "grabaciones/capturas"
-            
-            # Crear directorio si no existe
-            os.makedirs(captures_dir, exist_ok=True)
-            
-            filename = f"{captures_dir}/captura_{timestamp}.jpg"
+            # Usar PathManager para generar ruta según el modo activo
+            filename = self.path_manager.generate_capture_filename()
             
             # Procesar en background thread para no bloquear UI
             def save_frame_background():
@@ -513,3 +538,115 @@ class ButtonHandlers:
         except Exception as e:
             logger.error(f"❌ Error verificando frame: {e}")
             return False
+    
+    def handle_report_button(self):
+        """Manejar clic del botón INFORME - Generar según el modo"""
+        logger.info("📋 Botón INFORME presionado")
+        
+        # Obtener información básica de la sesión actual
+        session_info = self.session_manager.get_current_session_info()
+        
+        if not session_info:
+            # No hay sesión activa
+            QMessageBox.information(
+                self.main_window,
+                "📋 Generar Informe",
+                "❌ No hay sesión activa\n\n"
+                "Para generar un informe:\n"
+                "1. Inicia una inspección\n"
+                "2. Realiza capturas de video\n"
+                "3. Luego genera el informe\n\n"
+                "🔄 El informe incluirá todas las capturas de la sesión actual"
+            )
+            return
+        
+        # Obtener datos básicos
+        mode_name = session_info.get('mode_name', 'Desconocido')
+        captures_count = session_info.get('session_stats', {}).get('captures_count', 0)
+        mode_folder = self.path_manager.get_current_mode_folder()
+        current_mode = session_info.get('mode', '')
+        
+        if captures_count == 0:
+            # Sesión sin capturas
+            QMessageBox.information(
+                self.main_window,
+                "📋 Generar Informe",
+                "❌ No hay capturas en esta sesión\n\n"
+                "Para generar un informe necesitas:\n"
+                "• Al menos 1 captura de pantalla\n"
+                "• Usa el botón 📸 CAPTURA durante la grabación\n\n"
+                f"💡 Modo actual: {mode_name}\n"
+                f"📁 Las capturas se guardan en: metadatos/{mode_folder}/capturas/"
+            )
+            return
+        
+        # ✅ GENERAR INFORME SEGÚN EL MODO
+        if current_mode == "rapido":
+            # MODO RÁPIDO: Generar PDF real
+            self._generate_rapid_report(session_info, captures_count)
+        else:
+            # OTROS MODOS: Mensaje de desarrollo
+            QMessageBox.information(
+                self.main_window,
+                "📋 Generar Informe",
+                f"🚀 MODO {mode_name.upper()}\n\n"
+                "📊 Información de la sesión actual:\n"
+                f"• Modo: {mode_name}\n"
+                f"• Capturas disponibles: {captures_count}\n"
+                f"• Ubicación: metadatos/{mode_folder}/\n\n"
+                "⏳ Informe para este modo próximamente disponible...\n\n"
+                "✅ El modo RÁPIDO ya está implementado"
+            )
+    
+    def _generate_rapid_report(self, session_info: dict, captures_count: int):
+        """Generar informe para MODO RÁPIDO"""
+        try:
+            logger.info("🚀 Generando informe rápido...")
+            
+            # Generar PDF
+            output_path = self.rapid_report_generator.generate_report()
+            
+            if output_path and os.path.exists(output_path):
+                # ✅ PDF generado exitosamente
+                file_size = os.path.getsize(output_path) / 1024  # KB
+                filename = os.path.basename(output_path)
+                
+                QMessageBox.information(
+                    self.main_window,
+                    "📋 Informe Generado",
+                    f"✅ Informe rápido generado exitosamente\n\n"
+                    f"📁 Archivo: {filename}\n"
+                    f"📍 Ubicación: metadatos/rapido/reportes/\n"
+                    f"📊 Tamaño: {file_size:.1f} KB\n\n"
+                    f"📸 Capturas incluidas: {captures_count}\n"
+                    f"📐 Layout: 3×2 por página\n"
+                    f"📄 Solo imágenes (sin anotaciones)\n\n"
+                    f"🎯 ¡Listo para visualizar!"
+                )
+                
+                logger.info(f"✅ Informe rápido generado: {output_path}")
+                
+            else:
+                # ❌ Error en la generación
+                QMessageBox.critical(
+                    self.main_window,
+                    "❌ Error de Generación",
+                    "No se pudo generar el informe rápido.\n\n"
+                    "Posibles causas:\n"
+                    "• Archivos de imagen no encontrados\n"
+                    "• Permisos de escritura en carpeta reportes/\n"
+                    "• Error en la librería PDF\n\n"
+                    "💡 Revisa los logs para más detalles"
+                )
+                
+                logger.error("❌ Error generando informe rápido")
+                
+        except Exception as e:
+            # ❌ Error técnico
+            logger.error(f"❌ Error técnico generando informe: {e}")
+            QMessageBox.critical(
+                self.main_window,
+                "❌ Error Técnico",
+                f"Error técnico al generar informe:\n\n{str(e)}\n\n"
+                "💡 Contacta al soporte técnico si persiste"
+            )

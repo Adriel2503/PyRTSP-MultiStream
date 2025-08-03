@@ -24,23 +24,31 @@ class InspectionFormDialog(QDialog):
     # Señal emitida cuando se guardan los datos
     data_saved = pyqtSignal(dict)  # Envía diccionario con todos los datos
     
-    def __init__(self, parent=None):
+    def __init__(self, parent=None, inspection_mode=None):
         super().__init__(parent)
         
+        # Guardar modo de inspección
+        self.inspection_mode = inspection_mode
+        
         # Componentes especializados
-        self.form_fields = FormFields()
+        self.form_fields = FormFields(inspection_mode)  # Pasar modo a FormFields
         self.styled_messages = StyledMessages(self)
         self.form_validation = FormValidation(self.styled_messages)
         
         self.setup_ui()
         self.form_fields.populate_defaults()
-        logger.info("InspectionFormDialog inicializado con arquitectura modular")
+        logger.info(f"InspectionFormDialog inicializado para modo: {inspection_mode}")
     
     def setup_ui(self):
         """Configurar interfaz de usuario del formulario"""
-        self.setWindowTitle("Inicio de Inspección")
+        mode_name = "Básico" if (self.inspection_mode and hasattr(self.inspection_mode, 'value') and self.inspection_mode.value == "basico") else "Profesional"
+        self.setWindowTitle(f"Inicio de Inspección - Modo {mode_name}")
         self.setModal(True)
-        self.resize(600, 700)
+        # Ajustar tamaño según el modo
+        if mode_name == "Básico":
+            self.resize(600, 500)  # Más compacto para menos campos
+        else:
+            self.resize(600, 700)  # Tamaño completo
         
         # Layout principal
         main_layout = QVBoxLayout(self)

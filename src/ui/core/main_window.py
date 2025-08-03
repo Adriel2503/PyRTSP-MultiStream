@@ -13,6 +13,8 @@ from PyQt6.QtCore import QTimer, Qt
 from PyQt6.QtGui import QKeySequence, QShortcut
 
 from ...utils.logger import setup_logger
+from ...utils.path_manager import get_path_manager
+from ...utils.session_manager import get_session_manager
 from ..video_widget import VideoWidget
 from ..login_screen import LoginScreen
 from ..mode_selector import ModeSelector
@@ -43,6 +45,10 @@ class MainWindow(QMainWindow):
         self.app_controller = None
         self.button_handlers = None
         self.mode_manager = None
+        
+        # Gestores de rutas y sesión
+        self.path_manager = get_path_manager()
+        self.session_manager = get_session_manager()
         
         self.setup_ui()
         self.setup_components()
@@ -147,6 +153,7 @@ class MainWindow(QMainWindow):
             self.control_panel.annotate_button_clicked.connect(self.button_handlers.handle_annotate_button)
             self.control_panel.reset_distance_clicked.connect(self.button_handlers.handle_reset_distance_button)
             self.control_panel.clear_screen_clicked.connect(self.button_handlers.handle_clear_screen_button)
+            self.control_panel.report_button_clicked.connect(self.button_handlers.handle_report_button)  # ✅ NUEVO
             self.control_panel.settings_button_clicked.connect(self.button_handlers.handle_settings_button)
         
         logger.debug("Señales conectadas entre componentes")
@@ -165,6 +172,13 @@ class MainWindow(QMainWindow):
             # Configurar modo en el manager
             mode = InspectionMode(mode_str)
             self.mode_manager.set_mode(mode)
+            
+            # ✅ NUEVO: Configurar PathManager con el modo seleccionado
+            self.path_manager.set_current_mode(mode)
+            
+            # ✅ NUEVO: Iniciar nueva sesión de inspección
+            session_id = self.session_manager.start_session(mode)
+            logger.info(f"Nueva sesión iniciada: {session_id}")
             
             # Configurar control panel según el modo
             if self.control_panel:
@@ -187,6 +201,11 @@ class MainWindow(QMainWindow):
     
     def disconnect_stream(self):
         """Método legacy para desconectar (mantener compatibilidad)"""
+        # ✅ NUEVO: Finalizar sesión actual antes de desconectar
+        if self.session_manager.current_session:
+            self.session_manager.end_session()
+            logger.info("Sesión finalizada al desconectar")
+        
         if self.app_controller:
             self.app_controller.handle_disconnect_request()
         else:
@@ -201,6 +220,11 @@ class MainWindow(QMainWindow):
     
     def closeEvent(self, event):
         """Manejar cierre de aplicación"""
+        # ✅ NUEVO: Finalizar sesión actual antes de cerrar
+        if self.session_manager.current_session:
+            self.session_manager.end_session()
+            logger.info("Sesión finalizada al cerrar aplicación")
+        
         # Usar controller si está disponible
         if self.app_controller:
             self.app_controller.force_disconnect()

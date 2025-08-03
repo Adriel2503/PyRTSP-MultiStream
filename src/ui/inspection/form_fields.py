@@ -16,7 +16,10 @@ logger = setup_logger("FormFields")
 class FormFields:
     """Maneja todos los campos del formulario de inspección"""
     
-    def __init__(self):
+    def __init__(self, inspection_mode=None):
+        # Guardar modo de inspección
+        self.inspection_mode = inspection_mode
+        
         # Referencias a todos los campos
         self.operario_input = None
         self.ciudad_input = None
@@ -31,31 +34,43 @@ class FormFields:
         self.ref_tramo_input = None
         self.inf_adicional_input = None
         
-        logger.debug("FormFields inicializado")
+        logger.debug(f"FormFields inicializado para modo: {inspection_mode}")
     
     def create_form_layout(self):
-        """Crear layout completo del formulario con todos los campos"""
+        """Crear layout del formulario según el modo de inspección"""
         form_frame = QFrame()
         form_frame.setObjectName("formFrame")
         form_layout = QGridLayout(form_frame)
         form_layout.setSpacing(10)
         form_layout.setColumnStretch(1, 1)  # Columna de inputs se expande
         
-        # Crear todos los campos
-        self._create_operario_field(form_layout, 0)
-        self._create_ciudad_field(form_layout, 1)
-        self._create_direccion_field(form_layout, 2)
-        self._create_localidad_field(form_layout, 3)
-        self._create_sentido_field(form_layout, 4)
-        self._create_tipo_alcant_field(form_layout, 5)
-        self._create_material_field(form_layout, 6)
-        self._create_diametro_field(form_layout, 7)
-        self._create_pozo_desde_field(form_layout, 8)
-        self._create_pozo_hasta_field(form_layout, 9)
-        self._create_ref_tramo_field(form_layout, 10)
-        self._create_inf_adicional_field(form_layout, 11)
+        if self.inspection_mode and hasattr(self.inspection_mode, 'value') and self.inspection_mode.value == "basico":
+            # MODO BÁSICO: Solo 6 campos esenciales
+            self._create_operario_field(form_layout, 0)
+            self._create_ciudad_field(form_layout, 1)
+            self._create_direccion_field(form_layout, 2)
+            self._create_pozo_desde_field(form_layout, 3)
+            self._create_pozo_hasta_field(form_layout, 4)
+            self._create_ref_tramo_field(form_layout, 5)
+            
+            logger.info("Layout del formulario BÁSICO creado con 6 campos")
+        else:
+            # MODO PRO: Todos los campos (12)
+            self._create_operario_field(form_layout, 0)
+            self._create_ciudad_field(form_layout, 1)
+            self._create_direccion_field(form_layout, 2)
+            self._create_localidad_field(form_layout, 3)
+            self._create_sentido_field(form_layout, 4)
+            self._create_tipo_alcant_field(form_layout, 5)
+            self._create_material_field(form_layout, 6)
+            self._create_diametro_field(form_layout, 7)
+            self._create_pozo_desde_field(form_layout, 8)
+            self._create_pozo_hasta_field(form_layout, 9)
+            self._create_ref_tramo_field(form_layout, 10)
+            self._create_inf_adicional_field(form_layout, 11)
+            
+            logger.info("Layout del formulario PRO creado con 12 campos")
         
-        logger.info("Layout del formulario creado con 12 campos")
         return form_frame
     
     def _create_operario_field(self, layout, row):
@@ -144,31 +159,55 @@ class FormFields:
         layout.addWidget(self.inf_adicional_input, row, 1)
     
     def populate_defaults(self):
-        """Llenar campos con valores por defecto"""
-        # Sentido por defecto
-        self.sentido_combo.setCurrentText("FLUJO")
-        
-        # Tipo alcantarilla por defecto
-        self.tipo_alcant_combo.setCurrentText("SANITARIO")
-        
-        logger.debug("Campos poblados con valores por defecto")
+        """Llenar campos con valores por defecto según el modo"""
+        if self.inspection_mode and hasattr(self.inspection_mode, 'value') and self.inspection_mode.value == "basico":
+            # MODO BÁSICO: Solo defaults necesarios (ninguno por ahora)
+            logger.debug("Campos básicos sin defaults especiales")
+        else:
+            # MODO PRO: Defaults completos
+            if self.sentido_combo:
+                self.sentido_combo.setCurrentText("FLUJO")
+            
+            if self.tipo_alcant_combo:
+                self.tipo_alcant_combo.setCurrentText("SANITARIO")
+            
+            logger.debug("Campos completos poblados con valores por defecto")
     
     def get_all_data(self):
-        """Obtener todos los datos del formulario"""
-        return {
-            'operario': self.operario_input.text().strip(),
-            'ciudad': self.ciudad_input.text().strip(),
-            'direccion': self.direccion_input.text().strip(),
-            'localidad': self.localidad_input.text().strip(),
-            'sentido': self.sentido_combo.currentText(),
-            'tipo_alcant': self.tipo_alcant_combo.currentText(),
-            'material': self.material_input.text().strip(),
-            'diametro': self.diametro_input.text().strip(),
-            'pozo_desde': self.pozo_desde_input.text().strip(),
-            'pozo_hasta': self.pozo_hasta_input.text().strip(),
-            'ref_tramo': self.ref_tramo_input.text().strip(),
-            'inf_adicional': self.inf_adicional_input.toPlainText().strip()
-        }
+        """Obtener todos los datos del formulario según el modo"""
+        if self.inspection_mode and hasattr(self.inspection_mode, 'value') and self.inspection_mode.value == "basico":
+            # MODO BÁSICO: Solo campos esenciales
+            return {
+                'operario': self.operario_input.text().strip(),
+                'ciudad': self.ciudad_input.text().strip(),
+                'direccion': self.direccion_input.text().strip(),
+                'pozo_desde': self.pozo_desde_input.text().strip(),
+                'pozo_hasta': self.pozo_hasta_input.text().strip(),
+                'ref_tramo': self.ref_tramo_input.text().strip(),
+                # Campos vacíos para compatibilidad
+                'localidad': '',
+                'sentido': 'FLUJO',  # Valor por defecto
+                'tipo_alcantarillado': 'SANITARIO',  # Valor por defecto
+                'material': '',
+                'diametro': '',
+                'informacion_adicional': ''
+            }
+        else:
+            # MODO PRO: Todos los campos
+            return {
+                'operario': self.operario_input.text().strip(),
+                'ciudad': self.ciudad_input.text().strip(),
+                'direccion': self.direccion_input.text().strip(),
+                'localidad': self.localidad_input.text().strip() if self.localidad_input else '',
+                'sentido': self.sentido_combo.currentText() if self.sentido_combo else 'FLUJO',
+                'tipo_alcantarillado': self.tipo_alcant_combo.currentText() if self.tipo_alcant_combo else 'SANITARIO',
+                'material': self.material_input.text().strip() if self.material_input else '',
+                'diametro': self.diametro_input.text().strip() if self.diametro_input else '',
+                'pozo_desde': self.pozo_desde_input.text().strip(),
+                'pozo_hasta': self.pozo_hasta_input.text().strip(),
+                'ref_tramo': self.ref_tramo_input.text().strip(),
+                'informacion_adicional': self.inf_adicional_input.toPlainText().strip() if self.inf_adicional_input else ''
+            }
     
     def get_required_fields(self):
         """Obtener lista de campos requeridos para validación"""
